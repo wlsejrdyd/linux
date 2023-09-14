@@ -1,0 +1,6 @@
+1. 경로안의 특정 사용자를 검색하여 새로운 사용자 이름으로 변경하기.
+ex1) find /free/home/* -user pdnsdeok -exec chown pdnsdeok. {} \;
+명령어 : find [경로] -user [사용자] -exec chown [변경할 사용자] {} \;                          // chown -R 을 이용할 수 있고, 변경한 사용자뒤에 "." 마침표를 넣으면 그룹까지..
+
+2. ex ) find -perm -NNNN
+NNNN 으로 들어가는 번호를 따라, 만약 NNNN 자릿수에 숫자가 포함되어있는 결과값을 검색함
