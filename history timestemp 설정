@@ -1,0 +1,4 @@
+# vi /etc/profile
+#<history time>
+HISTTIMEFORMAT="%Y-%m-%d [%H:%M:%S]"
+export HISTTIMEFORMAT
