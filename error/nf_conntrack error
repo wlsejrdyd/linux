@@ -1,6 +1,0 @@
-ISSUE : 
-messages log에 "kernel : nf_conntrack: table full, dropping packet." 로그가 찍힌다.
-증상은 IP나 보안장비에는 이상이없는데 네트워크가 간혈적으로 끊김.
-
-Solution : 
-echo "0" > /proc/sys/net/nf_contrack_max
