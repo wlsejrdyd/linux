@@ -1,0 +1,12 @@
+1. 원하는 줄 다음줄에 새로운 행 입력
+ex1) sed -i -e '265a\JAVA_OPTS="-Djava.net.preferIPv4Stack=true"\' /usr/local/tomcat/bin/catalina.sh
+# sed -i -e '라인번호a\추가할내용\' 파일위치
+
+
+2. 문자 치환
+ex1) sed -i 's/wheel:x:10:/wheel:x:10:'$ID'/g' /etc/group
+# sed -i 's/기존내용/변경할내용/g' 파일위치
+
+3. 주석 제거
+ex1) sed '/^#/d' ./httpd.conf
+# sed '/^#/d' ./파일위치
