@@ -1,0 +1,14 @@
+/$dir2/log/apache/*log
+/$dir2/log/redis/*log
+/$dir2/log/tomcat-ui/catalina.out
+/$dir2/log/mariadb/*log
+{
+        copytruncate
+        daily
+        missingok
+        rotate 180
+        compress
+        delaycompress
+        notifempty
+        dateext
+}
