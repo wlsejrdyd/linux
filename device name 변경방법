@@ -1,0 +1,4 @@
+1. # vi /etc/default/grub
+2. rhgb quiet 뒤에 net.ifnames=0 biosdevname=0" 추가
+3. grub2-mkconfig -o /boot/grub2/grub.cfg
+4. ifcfg 파일 수정 후 재부팅
