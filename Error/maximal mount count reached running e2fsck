@@ -1,0 +1,15 @@
+mount count 가 높아서 나는 에러.
+
+# tune2fs -l /dev/[장치명] | grep ^M
+
+max 값보다 높다. (많이높으면 확실함)
+
+# umount /dev/[장치명]
+
+파일시스템 체크
+# e2fsck -p /dev/[장치명]
+
+이후 조치
+# tune2fs -c 30 /dev/[장치명]
+
+# mount /dev/[장치명] [Mount Point]
