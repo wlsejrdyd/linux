@@ -1,15 +1,14 @@
 	1. sftp log 남기기
-- [ ]  
 	2. /etc/ssh/sshd_config
 		1. 추가
-- [ ] # Subsystem       sftp     /usr/libexec/openssh/sftp-server  (기존에있던거 주석)
+                # Subsystem       sftp     /usr/libexec/openssh/sftp-server  (기존에있던거 주석)
       		Subsystem      sftp     /usr/libexec/openssh/sftp-server -f local2 -l INFO (추가)
       		 
 	3. /etc/rsyslog.conf
 		1. 추가
-- [ ] local2.* /var/log/.sftp.log
+		local2.* /var/log/.sftp.log
 	2. 파일생성
-- [ ] # touch /var/log/.sftp.log
+	# touch /var/log/.sftp.log
       		 
 	4. 서비스 재시작
 		1. systemctl restart sshd (실패했다고 나올 수 있는데 두번은 해줘야함)
