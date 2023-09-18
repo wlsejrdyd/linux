@@ -1,0 +1,40 @@
+1. 환경
+	1. AWS EC2
+	2. CPU : 2c
+	3. Ram : 8g
+	4. OS : Redhat 9.2
+
+2. 사전작업
+	1. # swapoff -a
+	2. # systemctl stop firewalld && systemctl stop disable firewalld
+	3. # setenforce 0
+	4. # VAR1=/etc/sysctl.d/k8s.conf && echo "net.bridge.bridge-nf-call-ip6tables = 1" >>${VAR1} && echo "net.bridge.bridge-nf-call-iptables = 1" >>${VAR1} && echo "net.ipv4.ip_forward = 1" >>${VAR1} && sysctl --system
+	5. # dnf install container-tools bash-completion
+	6. # dnf update -y && init 6
+	7. # export VERSION=1.25 && export OS=CentOS_8
+	8. # curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/devel:kubic:libcontainers:stable.repo
+	9. # curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo
+	10. # dnf install crio && systemctl enable --now crio
+	11. # hostnamectl set-hostname master-node-new (hosts 에도 추가)
+	12. # cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+	    [kubernetes]
+	    name=Kubernetes
+	    baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+	    enabled=1
+	    gpgcheck=1
+	    repo_gpgcheck=1
+	    gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+	    EOF
+	13. # dnf --showduplicates list  kubeadm
+	14. # dnf install -y kubeadm-1.25.7-0 kubelet-1.25.7-0 kubectl-1.25.7-0 && systemctl enable kubelet.service
+	15. # modprobe br_netfilter && kubeadm init --pod-network-cidr=172.30.0.0/16| tee kubeadm.out
+		1. 만약 worker node 일 경우 master kubeadm.out file 을 확인해서 kubeadm join 하자
+	16. # mkdir -p $HOME/.kube && cp -i /etc/kubernetes/admin.conf $HOME/.kube/config && chown $(id -u):$(id -g) $HOME/.kube/config && export KUBECONFIG=/etc/kubernetes/admin.conf
+	17. # echo 'source <(kubectl completion bash)' >>~/.bashrc && echo 'alias k=kubectl' >>~/.bashrc && echo 'complete -o default -F __start_kubectl k' >>~/.bashrc && source ~/.bashrc
+	18. # curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl-convert"
+	19. # curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl-convert.sha256"
+	20. # echo "$(cat kubectl-convert.sha256) kubectl-convert" | sha256sum --check
+	21. # install -o root -g root -m 0755 kubectl-convert /usr/local/bin/kubectl-convert
+	22. # kubectl convert --help
+	23. # rm kubectl-convert kubectl-convert.sha256
+	24. # source ~/.bashrc
