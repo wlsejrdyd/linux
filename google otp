@@ -1,0 +1,38 @@
+Mar  9 14:19:51 media bash[1485]: root(112.216.164.45):/root]# git clone https://github.com/google/google-authenticator-libpam
+Mar  9 14:19:52 media bash[1494]: root(112.216.164.45):/root]# rz
+Mar  9 14:20:02 media bash[1766]: root(112.216.164.45):/root]# tar xvfz google-authenticator-libpam.tar.gz
+Mar  9 14:20:03 media bash[1801]: root(112.216.164.45):/root]# cd google-authenticator-libpam
+Mar  9 14:20:28 media bash[1874]: root(112.216.164.45):/var/log]# cat ./.cmd.log  | grep system
+Mar  9 14:24:10 media bash[2342]: root(112.216.164.45):/root/google-authenticator-libpam]# ./bootstrap.sh
+Mar  9 14:24:58 media bash[3692]: root(112.216.164.45):/root/google-authenticator-libpam]# ./configure --libdir=/lib64
+Mar  9 14:26:12 media bash[5823]: root(112.216.164.45):/var/log]# cat ./.cmd.log  | grep psk
+Mar  9 14:26:18 media bash[5835]: root(112.216.164.45):/var/log]# cat /etc/passwd
+Mar  9 14:26:20 media bash[5843]: root(112.216.164.45):/var/log]# cat /etc/passwd | grep zabbix
+Mar  9 14:27:02 media bash[5863]: root(112.216.164.45):/var/log]# rpm -qa | grep psktool
+Mar  9 14:27:16 media bash[5879]: root(112.216.164.45):/var/log]# rpm -qa | grep gnutls-utils
+Mar  9 14:28:27 media bash[6272]: root(112.216.164.45):/root/google-authenticator-libpam]# echo $?
+Mar  9 14:28:36 media bash[6283]: root(112.216.164.45):/root/google-authenticator-libpam]#  make && make install
+Mar  9 14:29:00 media bash[6657]: root(112.216.164.45):/root/google-authenticator-libpam]# echo $?
+Mar  9 14:33:06 media bash[7415]: root(112.216.164.45):/root/google-authenticator-libpam]# echo "auth       required     pam_google_
+authenticator.so nullok secret=${HOME}/.ssh/google_authenticator" >> /etc/pam.d/sshd
+Mar  9 14:33:26 media bash[7430]: root(112.216.164.45):/root/google-authenticator-libpam]# cat /etc/pam.d/sshd
+Mar  9 14:34:12 media bash[7446]: root(112.216.164.45):/root/google-authenticator-libpam]# vi /etc/ssh/sshd_config
+Mar  9 14:39:34 media bash[8415]: root(112.216.164.45):/root/google-authenticator-libpam]# /etc/rc.d/init.d/sshd restart
+Mar  9 14:39:45 media bash[8436]: root(112.216.164.45):/root/google-authenticator-libpam]# useradd -u 496 mant0s -d /home/mant0s
+Mar  9 14:41:07 media bash[8801]: root(112.216.164.45):/root/google-authenticator-libpam]# passwd mant0s
+Mar  9 14:42:00 media bash[8821]: root(112.216.164.45):/root/google-authenticator-libpam]# vi /etc/group
+Mar  9 14:44:38 media bash[9231]: root(112.216.164.45):/root/google-authenticator-libpam]# su mant0s
+Mar  9 15:05:35 media bash[13178]: root(112.216.164.45):/var/log]# cd
+Mar  9 15:34:08 media bash[17876]: root(112.216.164.45):/root/google-authenticator-libpam]# cd ~
+Mar  9 15:34:10 media bash[17883]: root(112.216.164.45):/root]# mkdir .ssh
+Mar  9 15:34:11 media bash[17891]: root(112.216.164.45):/root]# hostname
+Mar  9 15:34:33 media bash[17903]: root(112.216.164.45):/root]# google-authenticator -t -d --label root --issuer media.nayana.kr -r
+10 -R 15 -s ~/.ssh/google_authenticator
+Mar  9 15:34:45 media bash[17915]: root(112.216.164.45):/root]# top
+Mar  9 16:10:32 media bash[25306]: root(112.216.164.45):/root]# cd /root
+Mar  9 16:11:03 media bash[25321]: root(112.216.164.45):/root]# echo "auth       required     pam_google_authenticator.so nullok sec
+ret=${HOME}/.ssh/google_authenticator" >>  /etc/pam.d/su-l
+Mar  9 16:11:07 media bash[25328]: root(112.216.164.45):/root]# top
+Mar  9 16:18:51 media bash[26329]: root(112.216.164.45):/root]# vi /etc/pam.d/su-l
+Mar  9 16:59:02 media bash[387]: root(112.216.164.45):/root]# vi /etc/oops-firewall/filter.conf
+Mar  9 17:00:58 media bash[1127]: root(112.216.164.45):/root]# /etc/rc.d/init.d/oops-firewall restart
