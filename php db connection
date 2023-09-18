@@ -1,0 +1,9 @@
+<?
+$Host = "locahost";
+$User = "deok";
+$Pass = "deok00##";
+$DB = "deok";
+
+$con = mysqli_connect($Host,$User,$Pass,$DB) or die('Failed');
+$result = mysql_select_db($DB, $con);
+?>
