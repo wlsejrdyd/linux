@@ -1,0 +1,1 @@
+# firewall-cmd --add-rich-rule='rule family="ipv4" source address=192.168.57.1/32 port port="22" protocol="tcp" accept' --zone=public --permanent
