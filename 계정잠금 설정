@@ -1,0 +1,5 @@
+faillock 을 이용함.
+
+1. system-auth & password-auth
+auth  required  pam_faillock.so preauth silent audit deny=3 unlock_time=600
+auth  [default=die]  pam_faillock.so authfail audit deny=3 unlock_time=600
