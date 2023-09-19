@@ -1,0 +1,5 @@
+1순위 (생각도 하지말고 일단박으셈) : 
+kernel kernel-devel bash openssl openssl-devel gcc gcc-c++ net-tools vim bash-completion sysstat
+
+2순위 (어지간하면 다 설치하는거임) :
+yum-utils wget nmap-ncat
