@@ -1,0 +1,3 @@
+ # while true; do 명령어 ; sleep SEC ; done
+
+ # watch -n SEC 명령어
