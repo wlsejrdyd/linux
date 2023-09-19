@@ -1,0 +1,16 @@
+1. Rocky 9 / RHEL 9 에서 테스트진행
+2. rocky 9 에서는 parted 를 이용 , rhel 9 에서는 lvm을 이용해서 테스트진행
+
+[Pated]
+1. parted [device name] resizepart [시작점] [끝점]
+2. 확인하는 질문이 나오지만 거리낌없이 Y.
+3. resize2fs [device name] 입력 후 확인해보면 문제없이 확장 됨
+[Lvm]
+1. lvmextend -L+1G /dev/vo/lvdata
+2. 1기가바이트 확장 함.
+3. resize2fs /dev/vo/lvdata 로 업데이트 진행하고 확인해보면 확장되어있음.
+4. 재부팅후 fstab 내용대로 마운트도 확인
+
+
+참고로 xfs filesystem 은 resize2fs 가 안먹고 xfs_growfs 를 이용해야함
+마운트 상태에서도 라이브에서 잘 동작하는것으로 보인다.
