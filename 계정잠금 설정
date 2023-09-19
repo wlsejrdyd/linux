@@ -3,3 +3,8 @@ faillock 을 이용함.
 1. system-auth & password-auth
 auth  required  pam_faillock.so preauth silent audit deny=3 unlock_time=600
 auth  [default=die]  pam_faillock.so authfail audit deny=3 unlock_time=600
+
+account required pam_faillock.so
+
+2. faillock 으로 목록 확인가능.
+3. faillock 목록 초기화는 다음날 초기화 된다.
