@@ -1,0 +1,6 @@
+pwquality.conf 설정은 알아서 하면되고
+
+1. system-auth & password-auth
+password  requisite  pam_pwquality.so enforce_for_root
+
+추가
