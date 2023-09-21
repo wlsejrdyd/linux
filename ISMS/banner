@@ -1,0 +1,9 @@
+1. 대상파일 : /etc/motd , /etc/issue , /etc/issue.net
+
+2. 내용 : 
+####################################################
+Attention: This system is being monitored.
+Illegal access may result in legal penalties.
+####################################################
+
+3. 적용 : /etc/ssh/sshd_config
