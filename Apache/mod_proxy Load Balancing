@@ -1,0 +1,40 @@
+	1. 환경 : RHEL 8.5 / HTTPD 2.4.35 / mod_jk 1.2.48 / Tomcat 9.0.54
+	2. 주요설정파일 : httpd.conf , proxy.conf (Include 시에 사용)
+	3. 주의 : 21년11월 취약점 보고에 따르면 mod_proxy 사용 HTTPD 서버에 대한 악용될 우려가있어 2.4.49 이상버전을 사용할 것을 권장함.
+	4. httpd.conf
+- [ ] LoadModule  proxy_module modules/mod_proxy.so
+      LoadModule  proxy_http_module modules/mod_proxy_http.so
+      LoadModule  proxy_balancer_module modules/mod_proxy_balancer.so
+      LoadModule  slotmem_shm_module modules/mod_slotmem_shm.so
+      LoadModule  lbmethod_byrequests_module modules/mod_lbmethod_byrequests.so
+      LoadModule  proxy_ajp_module modules/mod_proxy_ajp.so
+      Include  conf/proxy.conf
+      .
+      .
+	5. proxy.conf
+- [ ] <VirtualHost  *:80>
+              ServerName hr.wooriam.kr
+              ProxyRequests Off
+              Header add Set-Cookie  "ROUTEID=.%{BALANCER_WORKER_ROUTE}e; path=/"  env=BALANCER_ROUTE_CHANGED
+              <Proxy balancer://mycluster>
+                BalancerMember ajp://192.168.57.8:8009 route=public1
+                BalancerMember ajp://192.168.57.9:8009 route=public2
+                ProxySet lbmethod=byrequests
+                ProxySet stickysession=ROUTEID
+              </Proxy>
+              ProxyPass / balancer://mycluster/
+      </VirtualHost>
+      <VirtualHost  *:80>
+              ServerName doc.deok.kr
+              ProxyRequests Off
+              Header add Set-Cookie  "ROUTEID=.%{BALANCER_WORKER_ROUTE}e; path=/"  env=BALANCER_ROUTE_CHANGED
+              <Proxy balancer://mycluster>
+                BalancerMember ajp://192.168.57.8:8019 route=public3
+                BalancerMember ajp://192.168.57.9:8019 route=public4
+                ProxySet lbmethod=byrequests
+                ProxySet stickysession=ROUTEID
+              </Proxy>
+              ProxyPass / balancer://mycluster/
+      </VirtualHost>
+	1. 도메인별로 구분을 두는건데 사이냅도 있다면 도메인이 두개 필요하겠지요? 아님말고.
+	2. 밸런스멤버에 route 이름은 톰캣 server.xml jvmRoute에 들어가는것과 동일하게 해놨던데 인터넷엔. 굳이 안맞추고 톰캣은 톰캣대로 놀아도 잘 세션 유지해줌.
