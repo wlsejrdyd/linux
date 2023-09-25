@@ -1,0 +1,46 @@
+# 버전 1
+Listen 443
+<VirtualHost xxx.xxx.xxx.xxx:443>
+DocumentRoot 소스디렉터리
+ServerName 도메인
+ServerAlias 도메인별칭
+SSLEngine on
+SSLCertificateFile <CRT 절대경로>
+SSLCertificateKeyFile <KEY 절대경로>
+SSLCertificateChainFile <CHAIN(ca-bundle) 절대경로>
+CustomLog /usr/local/apache/logs/access_log vcommon env=!CodeRed
+</VirtualHost>
+
+# 버전 2
+Listen 443
+SSLCipherSuite HIGH:MEDIUM:!MD5:!RC4:!3DES
+SSLProxyCipherSuite HIGH:MEDIUM:!MD5:!RC4:!3DES
+SSLHonorCipherOrder on
+SSLProtocol all -SSLv3
+SSLProxyProtocol all -SSLv3
+SSLPassPhraseDialog  builtin
+SSLSessionCache        "shmcb:/prd/app/apache/logs/ssl_scache(512000)"
+SSLSessionCacheTimeout  300
+<VirtualHost _default_:443>
+DocumentRoot "/prd/app/groupware/ui"
+ServerName gw.hiconsy.com,m.hiconsy.com,mdm.hiconsy.com,img.hiconsy.com
+ServerAdmin you@example.com
+ErrorLog "/prd/app/apache/logs/error_log"
+TransferLog "/prd/app/apache/logs/access_log"
+SSLEngine on
+SSLCertificateFile "/prd/app/apache/conf/SSL/_wildcard_.hiconsy.com_20211208E5041.crt.pem"
+SSLCertificateKeyFile "/prd/app/apache/conf/SSL/_wildcard_.hiconsy.com_20211208E5041.key.pem"
+SSLCertificateChainFile "/prd/app/apache/conf/SSL/_wildcard_.hiconsy.com_20211208E5041.ca-bundle.pem"
+<FilesMatch "\.(cgi|shtml|phtml|php)$">
+    SSLOptions +StdEnvVars
+</FilesMatch>
+<Directory "/prd/app/apache/cgi-bin">
+    SSLOptions +StdEnvVars
+</Directory>
+BrowserMatch "MSIE [2-5]" \
+         nokeepalive ssl-unclean-shutdown \
+         downgrade-1.0 force-response-1.0
+CustomLog "/prd/app/apache/logs/ssl_request_log" \
+          "%t %h %{SSL_PROTOCOL}x %{SSL_CIPHER}x \"%r\" %b"
+	JkMountFile  /prd/app/apache/conf/uri.properties
+</VirtualHost>
