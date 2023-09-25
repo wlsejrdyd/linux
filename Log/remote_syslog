@@ -12,23 +12,23 @@
 			$IncludeConfig /etc/rsyslog.d/*.conf
 			$OmitLocalLogging on
 			$IMJournalStateFile imjournal.state
-			*.info;mail.none;authpriv.none;cron.none;local1.none;local3.none                /var/log/messages
+			*.info;mail.none;authpriv.none;cron.none;local4.none;local5.none                /var/log/messages
 			authpriv.*                                              /var/log/secure
 			mail.*                                                  -/var/log/maillog
 			cron.*                                                  /var/log/cron
 			*.emerg                                                 :omusrmsg:*
 			uucp,news.crit                                          /var/log/spooler
 			local7.*                                                /var/log/boot.log
-			local1.notice   /var/log/.cmd.log
-			local3.*        @@192.168.57.2
+			local4.notice   /var/log/.cmd.log
+			local5.*        @@192.168.57.2
 2. vi /etc/rsyslog.d/deok.conf
 	1. 내용
 			$ModLoad imfile <-- 여러설정파일을 만든다면 rsyslog.conf에 추가해도됨
-			$InputFileName /var/log/.cmd.log
+			$InputFileName /var/log/{cmd.log,secure,messages}
 			$InputFileTag cmd-:
 			$InputFileStateFile stat-file1
 			$InputFileSeverity info
-			$InputFileFacility local3
+			$InputFileFacility local5
 			$InputRunFileMonitor
  
 4. Server2
@@ -43,19 +43,19 @@
 			$IncludeConfig /etc/rsyslog.d/*.conf
 			$OmitLocalLogging on
 			$IMJournalStateFile imjournal.state
-			*.info;mail.none;authpriv.none;cron.none;local1.none                /var/log/messages
+			*.info;mail.none;authpriv.none;cron.none;local4.none;local5.none                /var/log/messages
 			authpriv.*                                              /var/log/secure
 			mail.*                                                  -/var/log/maillog
 			cron.*                                                  /var/log/cron
 			*.emerg                                                 :omusrmsg:*
 			uucp,news.crit                                          /var/log/spooler
 			local7.*                                                /var/log/boot.log
-			local1.notice   /var/log/.cmd.log
-			$template FILENAME1,"/remote_log/%fromhost-ip%/cmd-%$YEAR%-%$MONTH%-%$DAY%.log"
-			local3.* ?FILENAME1
+			local4.notice   /var/log/.cmd.log
+			$template FILENAME1,"/remote_log/%fromhost-ip%/%$YEAR%/system-%$MONTH%-%$DAY%.log"
+			local5.* ?FILENAME1
 			 
 2. firewall-cmd --permanent --add-port=514/tcp
-	1. tcp 전송이기때문에 tcp만 열어줘도된다.
+	1. tcp 전송이기때문에 tcp만 열어줘도된다. (@ = UDP , @@ = TCP)
 5. 기타
 	1. 모든 서버 재시작
 	2. 만약 Server3을 추가하려면 Server1에서 했던것처럼 똑같이 추가만하고 rsyslog 재시작해주면 됨.
