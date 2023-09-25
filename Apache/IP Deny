@@ -1,0 +1,10 @@
+Include 가 되어있다면 extra/httpd-vhost.conf 에 , 아니면 httpd.conf 에 추가 해주면 됨
+
+<VirtualHost *:80>
+    DocumentRoot /home/hkvenus/public_html
+    ServerName 220.73.163.67
+    Redirect 403 /
+    ErrorDocument 403 "nope"
+    UseCanonicalName Off
+    UserDir Disabled
+</VirtualHost>
