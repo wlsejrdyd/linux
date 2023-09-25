@@ -1,0 +1,22 @@
+Apache 2.4 환경
+
+#OS 절대 경로를 바라 봄
+<Directory />
+Require all denied
+Require ip x.x.x.x
+</Directory>
+##절대 경로인 "/" 아래에 있는 모든 파일 또는 디렉터리 접근을 차단한다.
+
+#URL 경로 아래 있는 파일 단위
+<Files ".html">  // 다른 제시어로는 <Files ~ "\.(htm|html|css|js|php)$"> 등이 있음.
+Require all denied
+Require ip x.x.x.x
+</Files>
+##URL 밑에 있는 모든 .html 파일 접근을 차단한다.
+
+#URL 도메인 아래의 경로 디렉터리
+<Location  /aaa/bbb>
+Require all denied
+Require ip x.x.x.x
+</Location>
+##http://URL/aaa/bbb 경로의 접근을 차단한다.
