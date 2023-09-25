@@ -23,14 +23,14 @@ SSLSessionCache        "shmcb:/prd/app/apache/logs/ssl_scache(512000)"
 SSLSessionCacheTimeout  300
 <VirtualHost _default_:443>
 DocumentRoot "/prd/app/groupware/ui"
-ServerName gw.hiconsy.com,m.hiconsy.com,mdm.hiconsy.com,img.hiconsy.com
+ServerName gw.deok.com,m.deok.com,mdm.deok.com,img.deok.com
 ServerAdmin you@example.com
 ErrorLog "/prd/app/apache/logs/error_log"
 TransferLog "/prd/app/apache/logs/access_log"
 SSLEngine on
-SSLCertificateFile "/prd/app/apache/conf/SSL/_wildcard_.hiconsy.com_20211208E5041.crt.pem"
-SSLCertificateKeyFile "/prd/app/apache/conf/SSL/_wildcard_.hiconsy.com_20211208E5041.key.pem"
-SSLCertificateChainFile "/prd/app/apache/conf/SSL/_wildcard_.hiconsy.com_20211208E5041.ca-bundle.pem"
+SSLCertificateFile "/prd/app/apache/conf/SSL/_wildcard_.deok.com_20211208E5041.crt.pem"
+SSLCertificateKeyFile "/prd/app/apache/conf/SSL/_wildcard_.deok.com_20211208E5041.key.pem"
+SSLCertificateChainFile "/prd/app/apache/conf/SSL/_wildcard_.deok.com_20211208E5041.ca-bundle.pem"
 <FilesMatch "\.(cgi|shtml|phtml|php)$">
     SSLOptions +StdEnvVars
 </FilesMatch>
