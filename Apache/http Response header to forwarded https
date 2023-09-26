@@ -15,5 +15,6 @@ http Response header to forwarded https
     RequestHeader set  X-Forwarded-Proto "https"
     RequestHeader set  X-Forwarded-Port "443"
       		 
-		RequestHeader set X-Forwarded-Proto 의 역할은 다음과 같다.
-		1. X-Forarded-Proto : 헤더를 추가하면 웹 서버나 웹 애플리케이션이 이 정보를 활용하여 클라이언트가 현재 HTTP 또는 HTTPS로 연결되어 있는지를 감지할 수 있습니다. 이것은 HTTP에서 HTTPS로의 리디렉션을 구현하거나, 보안 관련 작업에 유용합니다.
+RequestHeader set X-Forwarded-Proto 의 역할은 다음과 같다.
+1. X-Forarded-Proto : 헤더를 추가하면 웹 서버나 웹 애플리케이션이 이 정보를 활용하여 클라이언트가 현재 HTTP 또는 HTTPS로 연결되어 있는지를 감지할 수 있습니다. 
+이것은 HTTP에서 HTTPS로의 리디렉션을 구현하거나, 보안 관련 작업에 유용합니다.
