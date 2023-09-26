@@ -1,4 +1,4 @@
-	1. 웹브라우저에서 url 입력시 물고들어가는데 apache httpd.conf 에 추가해서 url 자체를 리플레이스 시키는 방법.. 이거 몇년간 찾았는데 되게 간단한거였음.
+1. 웹브라우저에서 url 입력시 물고들어가는데 apache httpd.conf 에 추가해서 url 자체를 리플레이스 시키는 방법.. 이거 몇년간 찾았는데 되게 간단한거였음.
 
 <VirtualHost  *:80>
   ServerName 클라이언드접속URL
