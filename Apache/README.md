@@ -1,5 +1,5 @@
 # Apache 개인 참고자료 정리
-## URL 리플레이스
+## URL replace
 * 웹브라우저에서 www.a.com 이라는 도메인을 입력하면 www.b.com 으로 리다이렉팅 되게할때 사용
 ```
 <VirtualHost  *:80>
