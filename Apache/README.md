@@ -31,7 +31,7 @@ require valid-user
 * 그냥 안나오거나 로그인화면은 나오는데 정상적인 패스워드를 입력해도 접속이안된다면 .htaccess 의 file path를 살펴보자
 * 보안스크립트 떄문에 어쩔수없이 AuthConfig 옵션을 넣고 재구동해도 서비스에는 문제는없다. .htaccess 파일을 생성했을때는 문제지만
  
-### Options 
+### Options
 * 지시자 보안취약 옵션들
   * Indexes (디렉토리 리스팅)
     * 사용자가 정상적으로 url 을 입력했을경우 3가지 경우가 발생한다
@@ -45,8 +45,8 @@ require valid-user
      * 최상위 디렉터리에 링크가 걸리게 되면 passwd 등 보안에 주요파일들의 정보 취득이 가능하다고 함. 서비스 구동 사용자 권한으로 모든 파일에 접근할 수 있다.
 			 
 * ServerTokens 불필요한 서버정보 header 에서 숨기기
-	* Prod (ProductOnly)
-		* Apache 만 보여줌 (버전도 안보여주고 Apahce, 딱이거만 보여줌)
+ * Prod (ProductOnly)
+  * Apache 만 보여줌 (버전도 안보여주고 Apahce, 딱이거만 보여줌)
   	* Min (Minimal)
   	  	* Apache 버전까지 표기
   	* OS
