@@ -1,4 +1,6 @@
-### URL 리플레이스
+# Apache 개인 참고자료 정리
+
+## URL 리플레이스
 * 웹브라우저에서 a.com 이라는 도메인을 입력하면 b.com 으로 리다이렉팅 되었으면 좋겠을때 사용하는 방법
 ```
 <VirtualHost  *:80>
@@ -7,7 +9,7 @@
 </VirtualHost>
 ```
 
-### AllowOverride AuthConfig
+## AllowOverride AuthConfig
 * 클라이언트가 URL을 통해 접근할때 .htaccess 를 이용해 사용자인증을 받게할 수 있음
     * $APACHE_PATH/bin/htpasswd -c [Directory_PATH]/passfilename userid
       * 최초 설치시에만 c 옵션을 넣고하고 이후부터 c 넣으면 기존에있던 정보 다 지움
