@@ -1,4 +1,0 @@
-1. AddType application/x-compress .Z 활성화되어있는지 확인
-2. httpd.conf 설정파일에 추가되어있는지 확인
-AddType application/x-httpd-php .php4 .php .html .htm .inc
-AddType application/x-httpd-php-source .phps
