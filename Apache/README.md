@@ -11,7 +11,9 @@
 
 ## AllowOverride AuthConfig
 * 클라이언트가 URL을 통해 접근할때 .htaccess 를 이용해 사용자인증을 받게할 수 있음
-* $APACHE_PATH/bin/htpasswd -c [Directory_PATH]/passfilename userid
+```
+$APACHE_PATH/bin/htpasswd -c passfilename userid
+```
 * 최초 설치시에만 c 옵션을 넣고하고 이후부터 c 넣으면 기존에있던 정보 다 지우니 조심
 * 입력한 Dir PATH 로 이동 후 .htaccess 를 만듦
 ### Config
@@ -36,7 +38,7 @@ require valid-user
 ```
 <VirtualHost *:80>
     DocumentRoot /home/hkvenus/public_html
-    ServerName **{Deny IP}**
+    ServerName 디나이할IP입력
     Redirect 403 /
     ErrorDocument 403 "nope"
     UseCanonicalName Off
