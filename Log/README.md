@@ -22,8 +22,6 @@ local7.*                                                /var/log/boot.log
 local4.notice   /var/log/.cmd.log
 local5.*        @@192.168.57.2
 ```
-
-* **전달 서버**
   * vi /etc/rsyslog.d/deok.conf
   * 전달할 로그의 설정을 진행한다
 ```
