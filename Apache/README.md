@@ -64,3 +64,47 @@ RequestHeader set  X-Forwarded-Port "443"
 * RequestHeader set X-Forwarded-Proto 의 역할은 다음과 같다.
   * X-Forarded-Proto : 헤더를 추가하면 웹 서버나 웹 애플리케이션이 이 정보를 활용하여 클라이언트가 현재 HTTP 또는 HTTPS로 연결되어 있는지를 감지할 수 있습니다.
   * 이것은 HTTP에서 HTTPS로의 리디렉션을 구현하거나, 보안 관련 작업에 유용합니다.
+ 
+## https 리다이렉트
+```
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}$1 [R,L]
+```
+
+## Downloading index.html
+* AddType application/x-compress .Z 활성화되어있는지 확인
+* httpd.conf 설정파일에 추가되어있는지 확인
+```
+AddType application/x-httpd-php .php4 .php .html .htm .inc
+AddType application/x-httpd-php-source .phps
+```
+
+## Section Container
+### Apache 2.4 환경 OS 절대 경로
+```
+<Directory />
+Require all denied
+Require ip x.x.x.x
+</Directory>
+```
+* 절대 경로인 "/" 아래에 있는 모든 파일 또는 디렉터리 접근을 차단한다.
+
+### URL 경로 아래 있는 파일 단위
+```
+<Files ".html">
+Require all denied
+Require ip x.x.x.x
+</Files>
+```
+* URL 밑에 있는 모든 .html 파일 접근을 차단한다.
+* 다른 제시어로는 <Files ~ "\.(htm|html|css|js|php)$"> 등이 있음.
+
+### URL 도메인 아래의 경로 디렉터리
+```
+<Location  /aaa/bbb>
+Require all denied
+Require ip x.x.x.x
+</Location>
+```
+* www.a.com/aaa/bbb 경로의 접근을 차단한다.
