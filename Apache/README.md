@@ -31,7 +31,7 @@ require valid-user
 * 그냥 안나오거나 로그인화면은 나오는데 정상적인 패스워드를 입력해도 접속이안된다면 .htaccess 의 file path를 살펴보자
 * 보안스크립트 떄문에 어쩔수없이 AuthConfig 옵션을 넣고 재구동해도 서비스에는 문제는없다. .htaccess 파일을 생성했을때는 문제
 
-## IP Debn
+## IP Deny
 * Include 가 되어있다면 extra/httpd-vhost.conf 에 , 아니면 httpd.conf 에 추가 해주면 됨
 ```
 <VirtualHost *:80>
