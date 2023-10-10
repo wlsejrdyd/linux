@@ -41,3 +41,28 @@ RequestHeader set  X-Forwarded-Port "443"
 * RequestHeader set X-Forwarded-Proto 의 역할은 다음과 같다.
   * X-Forarded-Proto : 헤더를 추가하면 웹 서버나 웹 애플리케이션이 이 정보를 활용하여 클라이언트가 현재 HTTP 또는 HTTPS로 연결되어 있는지를 감지할 수 있습니다.
   * 이것은 HTTP에서 HTTPS로의 리디렉션을 구현하거나, 보안 관련 작업에 유용합니다.
+ 
+## 디스크 용량 이상
+### 문제 : maximal mount count reached running e2fsck
+* mount count가 장치에 설정되어있는 값을 가득사용했을때 또는 초과했을때 나타나는 에러
+* df -h 를 보면 어딘가 망가져 있거나 정상처럼 보일때도 간혹 있는거같다
+
+### 해결 : 마운트 횟수 증설
+* 현재 count 를 확인
+```
+tune2fs -l /dev/[장치명] | grep ^M
+max 값보다 높다. (많이높으면 확실함)
+```
+* 마운트해제
+```
+umount /dev/[장치명]
+```
+* 파일시스템 체크
+```
+e2fsck -p /dev/[장치명]
+```
+* 마운트 횟수 증설
+```
+tune2fs -c 30 /dev/[장치명]
+mount /dev/[장치명] [Mount Point]
+```
