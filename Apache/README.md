@@ -38,7 +38,7 @@ require valid-user
 ```
 <VirtualHost *:80>
     DocumentRoot /home/hkvenus/public_html
-    ServerName 디나이할IP입력
+    ServerName x.x.x.x
     Redirect 403 /
     ErrorDocument 403 "nope"
     UseCanonicalName Off
@@ -89,7 +89,6 @@ Require ip x.x.x.x
 </Directory>
 ```
 * 절대 경로인 "/" 아래에 있는 모든 파일 또는 디렉터리 접근을 차단한다.
-
 ### URL 경로 아래 있는 파일 단위
 ```
 <Files ".html">
@@ -99,7 +98,6 @@ Require ip x.x.x.x
 ```
 * URL 밑에 있는 모든 .html 파일 접근을 차단한다.
 * 다른 제시어로는 <Files ~ "\.(htm|html|css|js|php)$"> 등이 있음.
-
 ### URL 도메인 아래의 경로 디렉터리
 ```
 <Location  /aaa/bbb>
@@ -108,3 +106,12 @@ Require ip x.x.x.x
 </Location>
 ```
 * www.a.com/aaa/bbb 경로의 접근을 차단한다.
+
+## semaphore 설정
+* 접속자수 증가로 웹서버 부하가 발생하면 느려지거나 증상없이 간혈적으로 멈추곤 할때 의심해볼 수 있다.
+```
+echo 250 32000 100 512 > /proc/sys/kernel/sem
+echo 512 32000 512 512 > /proc/sys/kernel/sem
+for i in `ipcs -s|grep nobody|awk '{print $2}'`;do ipcrm -s $i;done;
+mv #{APACHE_HOME}/logs/httpd.pid ${APACHE_HOME}/logs/httpd.pid.old
+```
