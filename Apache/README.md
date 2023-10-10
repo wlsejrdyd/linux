@@ -1,21 +1,21 @@
 # Apache 개인 참고자료 정리
 
 ## URL 리플레이스
-* 웹브라우저에서 a.com 이라는 도메인을 입력하면 b.com 으로 리다이렉팅 되게할때 사용
+* 웹브라우저에서 www.a.com 이라는 도메인을 입력하면 www.b.com 으로 리다이렉팅 되게할때 사용
 ```
 <VirtualHost  *:80>
-  ServerName a.com
-  Redirect / https://b.com
+  ServerName www.a.com
+  Redirect / https://www.b.com
 </VirtualHost>
 ```
 
 ## AllowOverride AuthConfig
 * 클라이언트가 URL을 통해 접근할때 .htaccess 를 이용해 사용자인증을 받게할 수 있음
 ```
-$APACHE_PATH/bin/htpasswd -c passfilename userid
+${APACHE_PATH}/bin/htpasswd -c passfilename userid
 ```
 * 최초 설치시에만 c 옵션을 넣고하고 이후부터 c 넣으면 기존에있던 정보 다 지우니 조심
-* 입력한 Dir PATH 로 이동 후 .htaccess 를 만듦
+* passfilename 에 위치한 경로에 .htaccess 파일 생성필요
 ### Config
 ```
 #AuthType Basic
