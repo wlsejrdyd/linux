@@ -1,7 +1,7 @@
 # Apache 개인 참고자료 정리
 
 ## URL 리플레이스
-* 웹브라우저에서 a.com 이라는 도메인을 입력하면 b.com 으로 리다이렉팅 되었으면 좋겠을때 사용하는 방법
+* 웹브라우저에서 a.com 이라는 도메인을 입력하면 b.com 으로 리다이렉팅 되게할때 사용
 ```
 <VirtualHost  *:80>
   ServerName a.com
@@ -45,8 +45,8 @@ require valid-user
      * 최상위 디렉터리에 링크가 걸리게 되면 passwd 등 보안에 주요파일들의 정보 취득이 가능하다고 함. 서비스 구동 사용자 권한으로 모든 파일에 접근할 수 있다.
 			 
 * ServerTokens 불필요한 서버정보 header 에서 숨기기
- * Prod (ProductOnly)
-  * Apache 만 보여줌 (버전도 안보여주고 Apahce, 딱이거만 보여줌)
+* 	Prod (ProductOnly)
+* 	Apache 만 보여줌 (버전도 안보여주고 Apahce, 딱이거만 보여줌)
  * Min (Minimal)
   * Apache 버전까지 표기
  * OS
