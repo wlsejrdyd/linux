@@ -1,7 +1,7 @@
 # 로그
 ## remote rsyslog
 * OS : CentOS 7.7
-* **전달 서버**
+### 전달 서버
   * vi /etc/rsyslog.conf
   * rsyslog.conf 에 어느 서버로 어떤것을 전달할지 설정한다.
 ```
@@ -35,7 +35,7 @@ $InputRunFileMonitor
 ```
 * $ModLoad imfile : 여러설정파일을 만든다면 rsyslog.conf에 추가해도됨
  
-* **수집 서버**
+### 수집 서버
 * vi /etc/rsyslog.conf
   * 설정 후 주석을 제외한 설정파일 내용
 ```
