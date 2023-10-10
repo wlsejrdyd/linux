@@ -1,7 +1,7 @@
 # 로그
 ## remote rsyslog 설정
 * OS : CentOS 7.7
-* Server 1
+* **Server 1**
   * vi /etc/rsyslog.conf
   * rsyslog.conf 에 어느 서버로 어떤것을 전달할지 설정한다.
 ```
