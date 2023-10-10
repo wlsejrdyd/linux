@@ -47,7 +47,7 @@ require valid-user
 ```
 
 ## http Response header to forwarded https
-** 상황설명 : 최상단 L7 장비가 있고 클라이언트나 내부서버에서 URL www.a.com 을 호출시 L7으로 패킷이 전송된다. **
+**상황설명** : 최상단 L7 장비가 있고 클라이언트나 내부서버에서 URL www.a.com 을 호출시 L7으로 패킷이 전송된다.
 해당 패킷을 전송받은 L7 장비는 다시 https 로 리다이렉팅하여 사용자에게는 정상적으로 호출이 되지만 내부 서버간에 head request/resopone 작업 동작시 정상적인 호출을 받지 못하는 것을 확인. 
 서버 backend에서 강제로 WAS서버에서 API URL 을 입력했을시 http 로 들어오는것이 확인 됨.
 		1. CURL 명령어로 확인 시 호출은 서버에서 https 로 진행했지만 웹서버에서 http로 받아오는것을 확인 함.
