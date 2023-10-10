@@ -16,7 +16,7 @@ ${APACHE_PATH}/bin/htpasswd -c passfilename userid
 ```
 * 최초 설치시에만 c 옵션을 넣고하고 이후부터 c 넣으면 기존에있던 정보 다 지우니 조심
 * passfilename 에 위치한 경로에 .htaccess 파일 생성필요
-### Config
+### .htaccess
 ```
 #AuthType Basic
 AuthType Digest
