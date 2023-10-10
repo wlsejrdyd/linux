@@ -45,11 +45,11 @@ require valid-user
      * 최상위 디렉터리에 링크가 걸리게 되면 passwd 등 보안에 주요파일들의 정보 취득이 가능하다고 함. 서비스 구동 사용자 권한으로 모든 파일에 접근할 수 있다.
 			 
 * ServerTokens 불필요한 서버정보 header 에서 숨기기
-* 	Prod (ProductOnly)
-* 	Apache 만 보여줌 (버전도 안보여주고 Apahce, 딱이거만 보여줌)
- * Min (Minimal)
-  * Apache 버전까지 표기
- * OS
-  * Apache 버전과 운영체제를 보여줌
- * Full
-  * 모두 보여줌.
+	* Prod (ProductOnly)
+		* Apache 만 보여줌 (버전도 안보여주고 Apahce, 딱이거만 보여줌)
+  	* Min (Minimal)
+  	  	* Apache 버전까지 표기
+  	* OS
+  		* Apache 버전과 운영체제를 보여줌
+  	 * Full
+  	   	* 모두 보여줌.
