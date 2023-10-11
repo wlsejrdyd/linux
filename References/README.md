@@ -1,0 +1,22 @@
+# 기타 참고자료 모음
+## autofs 테스트
+* 환경
+```
+서버 2대
+CentOS 7.x
+1. Node1 (NFS 제공 서버)
+2. Node2 (autofs 서버)
+```
+* node1 서버에서 nfs-utils 설치
+* node2 서버에서 nfs-utils 및 autofs 설치한다.
+* node1 /etc/export 에 마운트하고자하는 디렉터리와, IP 및 권한을 설정한다.
+    * ex) /nfs_test/node1_dir 192.168.1.1(rw,sync,no_root_squash)
+* node1 서버에서 nfs-server 서비스를 시작한다. 활성화도 하든지.
+* node2 서버에서 mount 명령어로 nfs 붙는지 먼저 확인하는것도 좋을거같다.
+* node2 서버 /etc/auto.master.d 디렉터리로 이동해서 무슨무슨매핑 파일을 만든다. 파일명 형식은 아래와 같다.
+	* ex) test.autofs
+	* 내용 : ex ) /- /etc/test.test
+* node2 에서 autofs 재시작해준다.
+* df 를 본다. 없다. 마운트 된 경로로 들어가면 그때부터 마운트된다. 이상하다.
+	* umount 로 해제해도 마운트 된 디렉터리에 액션이 발생하면 자동으로 잡힌다. 해제도 안된다. 서비스꺼야함.
+	* 참고로 node2 서버에서 디렉터리를 설정하지않아도 자동으로 생성된다. 
