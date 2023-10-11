@@ -65,6 +65,7 @@ password  requisite  pam_pwquality.so enforce_for_root
 10. tcp_wrapper 활성화
 11. world writeable 확인
 ```
-# for i in ${var1} ; do find ${var1} -type f -perm -2 -exec ls -alLd {} \; | awk '{print $1 " : " $3 " : " $4 " : " $9}' ; done  # var1="/tmp /bin /sbin /etc /var /home"
+# var1="/tmp /bin /sbin /etc /var /home"
+# for i in ${var1} ; do find ${var1} -type f -perm -2 -exec ls -alLd {} \; | awk '{print $1 " : " $3 " : " $4 " : " $9}' ; done 
 ```
 
