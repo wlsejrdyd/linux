@@ -19,7 +19,7 @@ Banner /etc/issue.net
 ```
 
 ## 계정잠금 임계값
-* faillock 을 사용
+* faillock 사용
 ### 파일
 * system-auth , password-auth
 
