@@ -107,3 +107,12 @@ echo "0" > /proc/sys/net/nf_contrack_max
 ### 해결 : 버전 업데이트
 * 문제가 되던 버전에서 내부망 서버들의 업데이트가 안되고있었기때문에 정책허용해주니 업데이트 받고 이후에 rsyslog.conf 변조가 발생하지 않았다
 * 그런데 warning 로그에 이상한 ahnlab 이 추가되었을뿐...
+
+## systemctl --user
+### 문제 : "failed to connect to bus no medium found"
+* podman service 자동실행작업을 위해 systemctl --user enable ~~ 하게되면 "failed to connect to bus no medium found" 에러가 나오며 등록되지않는다.
+
+### 해결 : 사용자 프로필 또는 export 활용. 
+```
+XDG_RUNTIME_DIR=/run/user/$(id -u)
+```
