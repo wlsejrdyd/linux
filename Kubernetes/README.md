@@ -7,7 +7,7 @@ CPU : 2c
 Ram : 8g
 OS : RedhatEnterprise 9.2
 ```
-* 사전작업
+* 진행
 ```
 swapoff -a
 systemctl stop firewalld && systemctl stop disable firewalld
