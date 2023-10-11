@@ -1,7 +1,1 @@
-ISSUE :
-컨테이너 실행하고 일반 사용자로 자동실행 작업을 하려다보면 에러가 나오고 등록이 안된다.
 
-
-SOLUTION : 
-사용자 프로필 또는 export 활용.
-XDG_RUNTIME_DIR=/run/user/$(id -u)
