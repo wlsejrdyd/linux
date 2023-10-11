@@ -2,9 +2,9 @@
 ## remote rsyslog
 * OS : CentOS 7.7
 ### 전달 서버
-  * vi /etc/rsyslog.conf
-  * rsyslog.conf 에 어느 서버로 어떤것을 전달할지 설정한다.
+* rsyslog.conf 에 어느 서버로 어떤것을 전달할지 설정한다.
 ```
+# vi /etc/rsyslog.conf
 $ModLoad imuxsock # provides support for local system logging (e.g. via logger command)
 $ModLoad imjournal # provides access to the systemd journal
 $WorkDirectory /var/lib/rsyslog
@@ -22,9 +22,9 @@ local7.*                                                /var/log/boot.log
 local4.notice   /var/log/.cmd.log
 local5.*        @@192.168.57.2
 ```
-  * vi /etc/rsyslog.d/deok.conf
-  * 전달할 로그의 설정을 진행한다
+* 전달할 로그의 설정을 진행한다
 ```
+# vi /etc/rsyslog.d/deok.conf
 $ModLoad imfile
 $InputFileName /var/log/{cmd.log,secure,messages}
 $InputFileTag cmd-:
@@ -36,9 +36,9 @@ $InputRunFileMonitor
 * $ModLoad imfile : 여러설정파일을 만든다면 rsyslog.conf에 추가해도됨
  
 ### 수집 서버
-* vi /etc/rsyslog.conf
-  * 설정 후 주석을 제외한 설정파일 내용
+* 설정 후 주석을 제외한 설정파일 내용
 ```
+# vi /etc/rsyslog.conf
 $ModLoad imuxsock # provides support for local system logging (e.g. via logger command)
 $ModLoad imjournal # provides access to the systemd journal
 $ModLoad imtcp
@@ -60,7 +60,7 @@ $template FILENAME1,"/remote_log/%fromhost-ip%/%$YEAR%/system-%$MONTH%-%$DAY%.lo
 local5.* ?FILENAME1
 ```
 * $template : 수집한 로그에 대한 위치설정
-* firewall-cmd --permanent --add-port=514/tcp
+* 방화벽 514 포트 허용
   * tcp 전송이기때문에 tcp만 열어줘도된다. (@ = UDP , @@ = TCP)
 * 기타
   * 모든 서버 재시작
@@ -71,23 +71,24 @@ local5.* ?FILENAME1
 
 
 ## SFTP 로그
-* sftp log 남기기
-* vi /etc/ssh/sshd_config
+* sftp를 통한 업로드 다운로드를 로그를 남겨 추적할 수 있도록 도와준다.
+### 설정
 ```
-# Subsystem       sftp     /usr/libexec/openssh/sftp-server  (기존에있던거 주석)
+# vi /etc/ssh/sshd_config
+# Subsystem       sftp     /usr/libexec/openssh/sftp-server  (기존라인 주석)
 Subsystem      sftp     /usr/libexec/openssh/sftp-server -f local2 -l INFO
 ```
-* vi /etc/rsyslog.conf
 ```
+# vi /etc/rsyslog.conf
 local2.* /var/log/.sftp.log
 ```
 * 로그 파일 수동생성
 ```
-touch /var/log/.sftp.log
+# touch /var/log/.sftp.log
 ```		 
 * 서비스 재시작
 ```
-systemctl restart sshd
-systemctl restart rsyslog
+# systemctl restart sshd
+# systemctl restart rsyslog
 ```
 * 실패했다고 나올 수 있는데 두번은 해줘야함

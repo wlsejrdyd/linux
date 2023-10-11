@@ -1,2 +1,0 @@
-# env x='() { :;}; echo vulnerable' bash -c "echo this is a test"
-> vulnerable 구문이 보일시 업데이트 요망

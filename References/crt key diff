@@ -1,3 +1,0 @@
-# openssl rsa -noout -modulus -in star.deok.kr.key | openssl md5
-
-# openssl x509 -noout -modulus -in star.deok.kr.crt | openssl md5

@@ -5,8 +5,8 @@
 * 이유도 못 찾겠는데 messages 로그를 가득가득채워서 트러블슈팅하는데 문제가 많았음
   
 ### 해결
-* vi /etc/named.conf
 ```
+# vi /etc/named.conf
 logging {
      channel query-errors_log {
           file "/var/named/log/query-errors" versions 5 size 20m;
@@ -33,8 +33,9 @@ logging {
   * was 서버는 iframe 태그를 통해 웹페이지에 이미지를 띄워야하는데 L7를 거칠경우 사용자는 https 로 표시되지만 L7 -> Internal 서버끼리 통신은 https -> http 다시 반환됨.
     
 ### 해결 : L7 에서 해당 도메인으로 물고들어오는 요청패킷의 헤더를 다시!! https 헤더를 달아 was 서버로 넘겨줘야했다.
-* vi httpd.conf (apache 2.4.52)
+* apache 2.4.52
 ```
+# vi httpd.conf
 RequestHeader set  X-Forwarded-Proto "https"
 RequestHeader set  X-Forwarded-Port "443"
 ```
@@ -50,21 +51,21 @@ RequestHeader set  X-Forwarded-Port "443"
 ### 해결 : 마운트 횟수 증설
 * 현재 count 를 확인
 ```
-tune2fs -l /dev/[장치명] | grep ^M
+# tune2fs -l /dev/[장치명] | grep ^M
 max 값보다 높다. (많이높으면 확실함)
 ```
 * 마운트해제
 ```
-umount /dev/[장치명]
+# umount /dev/[장치명]
 ```
 * 파일시스템 체크
 ```
-e2fsck -p /dev/[장치명]
+# e2fsck -p /dev/[장치명]
 ```
 * 마운트 횟수 증설
 ```
-tune2fs -c 30 /dev/[장치명]
-mount /dev/[장치명] [Mount Point]
+# tune2fs -c 30 /dev/[장치명]
+# mount /dev/[장치명] [Mount Point]
 ```
 
 ## 서버의 모든패킷의 순단현상이 확인 됨
@@ -74,7 +75,7 @@ mount /dev/[장치명] [Mount Point]
 
 ### 해결 : nf_conrack_max 값 증가
 ```
-echo "0" > /proc/sys/net/nf_contrack_max
+# echo "0" > /proc/sys/net/nf_contrack_max
 ```
 * 평상시 트래픽이 몰리는 서버가 아닌데 이와같은 현상이 발생한다면 원인을 찾아서 막는것이 올바르다
 
@@ -114,5 +115,6 @@ echo "0" > /proc/sys/net/nf_contrack_max
 
 ### 해결 : 사용자 프로필 또는 export 활용. 
 ```
+# vi {HOME}/.bash_profile
 XDG_RUNTIME_DIR=/run/user/$(id -u)
 ```
