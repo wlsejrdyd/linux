@@ -128,4 +128,4 @@ hint: or --ff-only on the command line to override the configured default per
 hint: invocation.
 fatal: Need to specify how to reconcile divergent branches.
 ```
-* 쉘은 잘 떨어졌는데 뭔가 안된다. 다시
+* 쉘은 잘 떨어졌는데 저장소에 `새로만든 파일이 안보인다.` 다시
