@@ -47,7 +47,9 @@ Changes to be committed:
 # git commit -m "write here history comment"
 # git push -u origin master
 ```
-* 
+* git push -u orgin master 진행시 **"remote: Support for password authentication was removed on August 13, 2021."** 라고 한다.
+* commit 이후 push 명령 실행시 위와 같은 에러가 나온다면 github home 으로 가셔서 [SSH Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) 을 발급
+  * **"세분화된 개인 액세스 토큰 만들기"** 로 진행함.
 
 ### 
 * "./{filename}" 을 명시하지 않고 "." 를 입력할 경우 전체 파일을 선택하는 것이며, git rm --cached <file> 명령어로 등록 된 파일을 지울 수도 있다.
