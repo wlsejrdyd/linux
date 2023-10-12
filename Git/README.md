@@ -1,17 +1,19 @@
 # Git 사용법 정리
-### 환경
+## 환경
 ```
 OS : RedHat Enterprise Linux 9.2
 CPU : 2c
 RAM : 8g
 AWS EC2
 ```
-### Git 설치
+* 따끈따끈함을 유지하기위해 생성 직후 아무작업도 하지않고 진행했습니다.
+
+## Git 설치
 ```
 # yum install git
 ```
 
-### Global 환경설정
+## Global 환경설정
 ```
 # git config --global user.name wlsejrdyd
 # git config --global user.email wlsejrdyd@gmail.com
@@ -20,7 +22,7 @@ user.name=wlsejrdyd
 user.email=wlsejrdyd@gmail.com
 ```
 
-### Git Repository 연결
+## Repository 연결
 ```
 # git init
 # git remote add origin https://github.com/wlsejrdyd/scripts
@@ -28,10 +30,10 @@ user.email=wlsejrdyd@gmail.com
 origin  https://github.com/wlsejrdyd/scripts (fetch)
 origin  https://github.com/wlsejrdyd/scripts (push)
 ```
-* init : Git 저장소를 **생성**하거나 기존 저장소를 **다시 초기화**하세요.
+* init : Git 저장소를 `**생성**`하거나 기존 저장소를 **다시 초기화**하세요.
 * remote add origin : 연결할(될) URL 주소 명시.
 
-### file upload
+## Repository로 업로드
 * 연결됐으니 서버에서 깃 저장소로 파일을 올려봅시다.
 ```
 # echo "Upload test file 01" > update_file_01
@@ -45,10 +47,10 @@ Changes to be committed:
   (use "git rm --cached <file>..." to unstage)
         new file:   update_file_01
 # git commit -m "write here history comment"
-# git push -u origin master
+# git push
 ```
-* git push -u orgin master 진행시 **"remote: Support for password authentication was removed on August 13, 2021."** 라고 한다.
-* commit 이후 push 명령 실행시 위와 같은 에러가 나온다면 github home 으로 가셔서 [SSH Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) 을 발급
+* git push 명령어를 날리니 **"remote: Support for password authentication was removed on August 13, 2021."** 라고 한다...
+* commit 이후 push 명령 실행시 위와 같은 에러가 나온다면 [SSH Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) 을 발급해야 함
   * **"세분화된 개인 액세스 토큰 만들기"** 로 진행함
   * 생성한 토큰값은 저장해 놓을 것
   * 저장소 권한 도 수정해 줘야 함
@@ -84,4 +86,10 @@ Untracked files:
         .tcshrc
 ```
 
-### 
+## Server로 다운로드
+```
+# git remote -v
+origin  https://github.com/wlsejrdyd/scripts (fetch)
+origin  https://github.com/wlsejrdyd/scripts (push)
+# 
+```
