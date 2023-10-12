@@ -129,3 +129,5 @@ hint: invocation.
 fatal: Need to specify how to reconcile divergent branches.
 ```
 * 쉘은 잘 떨어졌는데 저장소에 `새로만든 파일이 안보인다.` 다시
+  * [참조1](https://woongchoi84.github.io/2020/01/15/post-productive-howtousegithub.html)
+  * [참조2](https://velog.io/@eunddodi/git-pull-%EC%8B%9C-%EB%B0%9C%EC%83%9D%ED%95%98%EB%8A%94-warning-%ED%95%B4%EA%B2%B0%ED%95%98%EA%B8%B0Need-to-specify-how-to-reconcile-divergent-branches)
