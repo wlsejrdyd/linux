@@ -30,7 +30,7 @@ user.email=wlsejrdyd@gmail.com
 origin  https://github.com/wlsejrdyd/scripts (fetch)
 origin  https://github.com/wlsejrdyd/scripts (push)
 ```
-* init : Git 저장소를 `**생성**`하거나 기존 저장소를 **다시 초기화**하세요.
+* init : Git 저장소를 **생성**하거나 기존 저장소를 **다시 초기화**하세요.
 * remote add origin : 연결할(될) URL 주소 명시.
 
 ## Repository로 업로드
@@ -93,3 +93,6 @@ origin  https://github.com/wlsejrdyd/scripts (fetch)
 origin  https://github.com/wlsejrdyd/scripts (push)
 # 
 ```
+
+| 제목 | 내용 |
+| --- | --- |
