@@ -135,3 +135,7 @@ fatal: Need to specify how to reconcile divergent branches.
     * [참조2](https://velog.io/@eunddodi/git-pull-%EC%8B%9C-%EB%B0%9C%EC%83%9D%ED%95%98%EB%8A%94-warning-%ED%95%B4%EA%B2%B0%ED%95%98%EA%B8%B0Need-to-specify-how-to-reconcile-divergent-branches)
   * git pull https://github.com/wlsejrdyd/deok ./deok
     * 이후 `pull` 부터는 발생하지않았다.
+
+
+아니근데, 저장소 연결은 다른걸로 했는데 deok 저장소 push 왜 되는거야?
+연결한 저장소는 어디에 쓰이는걸까나~~
