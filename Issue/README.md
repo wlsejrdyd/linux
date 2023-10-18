@@ -107,7 +107,7 @@ max 값보다 높다. (많이높으면 확실함)
 * 하... 보안이 중요하긴한데. 왜. 관리할 자신없다고 얘기한 기술들에 관련해서 요청한 사람은 손을 뗄려고 하는지 너무 무책임해보여서 이해가 안간다.
 ### 해결 : 버전 업데이트
 * 문제가 되던 버전에서 내부망 서버들의 업데이트가 안되고있었기때문에 정책허용해주니 업데이트 받고 이후에 rsyslog.conf 변조가 발생하지 않았다
-* 그런데 warning 로그에 이상한 ahnlab 이 추가되었을뿐...
+* 그런데 warning 로그에 이상한 ahnlab 로그가 추가되었을뿐...
 
 ## systemctl --user
 ### 문제 : "failed to connect to bus no medium found"
@@ -118,3 +118,21 @@ max 값보다 높다. (많이높으면 확실함)
 # vi {HOME}/.bash_profile
 XDG_RUNTIME_DIR=/run/user/$(id -u)
 ```
+
+## 리눅스 V3 설치 이후
+### 문제 : system warning log에 AhnLab error 출력에 대하여..
+* 버전업데이트 이후 rsyslog 및 syslog 파일의 중복설정값 추가(이하 변조)는 사라졌지만 시스템로그가 새롭게 생성되었음.
+```
+Oct 10 23:47:56 SERVER_HOSTkernel: <asm>:[INFO]Filter atamptl unregister
+Oct 10 23:47:56 SERVER_HOSTkernel: <atamptl>:[INFO]Unloaded atamptl
+Oct 10 23:47:56 SERVER_HOSTkernel: <asm>:[INFO]AhnLab. Security Module Version 3.4.3.8 unloaded
+Oct 10 23:48:02 SERVER_HOSTkernel: Request for unknown module key 'AhnLab, Inc.: AhnLab Code Signing - 2022.001: a0ee2da1e4101391b6fc913cad09f966cd019fa8' err -11
+Oct 10 23:48:02 SERVER_HOSTkernel: <asm>:[INFO]AhnLab. Security Module Version 3.4.3.8
+Oct 10 23:48:02 SERVER_HOSTkernel: Request for unknown module key 'AhnLab, Inc.: AhnLab Code Signing - 2022.001: a0ee2da1e4101391b6fc913cad09f966cd019fa8' err -11
+Oct 10 23:48:02 SERVER_HOSTkernel: <atamptl>:[INFO]Loaded atamptl 2.5.0.1
+Oct 10 23:48:02 SERVER_HOSTkernel: <atamptl>:[INFO]ASM Version 3.4.3.8
+Oct 10 23:48:02 SERVER_HOSTkernel: <asm>:[INFO]Filter atamptl register
+```
+### 해결 : warning 조회시 예외처리
+* 유지보수 중계업체 엔지니어 답변 : **secure boot 활성화가 되지않아 발생하는 로그이며, v3동작에 영향은 없을것.**
+* v3 epp 서버가 있으니 관리서버에서 내가모르는 기능이있다면 일괄적용으로 처리가 안되느냐고 물어봤지만 무응답. warning log 읽을때 관련 로그를 보이지않게 예외처리를 진행했고, 앞으로 별도확인하지않는 이상 warning system log에서 위와 관련된 로그를 볼 수 없게되었다.
