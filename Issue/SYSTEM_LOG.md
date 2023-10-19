@@ -12,7 +12,7 @@ kernel: [drm:drm_atomic_helper_wait_for_dependencies [drm_ksm_helper]] *ERROR* [
 ```
 * VMWare 관련로그
 * VMWare VM RHEL 7,8 에서만 발견되는 로그이며, VMWare 엔지니어링 팀은 이 메세지가 하이퍼바이저에 무해하다고 밝혔고, VMWare 사내에서 문제를 재현할 수 없기때문에 "수정되지 않음" 으로 VMWare 담당자에 의해 종료되었음.
-* (Redhat)[https://access.redhat.com/solutions/4490391] 공식 사이트 참조
+* [Redhat](https://access.redhat.com/solutions/4490391) 공식 사이트 참조
 
 ```
 rtkit-daemon: The canary thread is apparently starving. Taking action.
