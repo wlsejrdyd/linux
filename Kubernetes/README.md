@@ -54,13 +54,14 @@ EOF
 dnf --showduplicates list  kubeadm
 systemctl enable kubelet.service
 ```
-* `systemctl status kubelet` 서비스 확인하여 동작중임을 확인해준다.
-  * 만약 실행되지않았다면, journalctl 로 확인하겠지만 **error: failed to load Kubelet config file /var/lib/kubelet/config.yaml** 같은 에러가 보인다면 worker node 기준. `kubeadm init` 명령을 통해 파일을 생성해준다. (reset 후 join을 해야할텐데 /var/lib/kubelet 디렉터리는 백업해두자.)
-
 ```
 kubeadm init --pod-network-cidr=172.30.0.0/16| tee kubeadm.out
 mkdir -p $HOME/.kube && cp -i /etc/kubernetes/admin.conf $HOME/.kube/config && chown $(id -u):$(id -g) $HOME/.kube/config && export KUBECONFIG=/etc/kubernetes/admin.conf
 ```
+* worker node에서 이 부분 작업을 진행하다보니 다양한 에러가 많이 나옴.
+  * `The connection to the server localhost:8080 was refused - did you specify the right host or port?` : **Master Node의 /etc/kubernetes/admin.conf 내용 복사하여 생성**
+  * `Unable to connect to the server: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes")` : **기존에있던 ${HOME}/.kube/config 파일을 수정.**
+* `systemctl status kubelet` 서비스 확인하여 동작중임을 확인해준다.
 * worker node 일 경우 master kubeadm.out file 을 확인해서 kubeadm join 하자
 
 ```
