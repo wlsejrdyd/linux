@@ -132,6 +132,6 @@ Oct 10 23:48:02 SERVER_HOSTkernel: <atamptl>:[INFO]Loaded atamptl 2.5.0.1
 Oct 10 23:48:02 SERVER_HOSTkernel: <atamptl>:[INFO]ASM Version 3.4.3.8
 Oct 10 23:48:02 SERVER_HOSTkernel: <asm>:[INFO]Filter atamptl register
 ```
-### 해결 : warning 조회시 예외처리
+### 해결(이 아닌조치) : warning 조회시 예외처리
 * 유지보수 중계업체 엔지니어 답변 : **secure boot 활성화가 되지않아 발생하는 로그이며, v3동작에 영향은 없을것.**
 * v3 epp 서버가 있으니 관리서버에서 내가모르는 기능이있다면 일괄적용으로 처리가 안되느냐고 물어봤지만 무응답. warning log 읽을때 관련 로그를 보이지않게 예외처리를 진행했고, 앞으로 별도확인하지않는 이상 warning system log에서 위와 관련된 로그를 볼 수 없게되었다.
