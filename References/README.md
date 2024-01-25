@@ -79,7 +79,7 @@ ifcfg 파일 수정 후 재부팅
 
 ## 필수 설치 유틸리티
 ```
-# yum install kernel kernel-devel bash openssl openssl-devel gcc gcc-c++ net-tools vim bash-completion sysstat yum-utils wget nmap-ncat lsof tcpdump
+# yum install kernel kernel-devel bash openssl openssl-devel gcc gcc-c++ net-tools vim bash-completion sysstat yum-utils wget nmap-ncat lsof tcpdump rsync
 ```
 * 물론 OS 첫 설치 이후이며, 서비스중인 운영서버에 반영할 시 커널업데이트같은 운영에 민감한 패키지도 같이 업데이트 되므로 주의.
 
