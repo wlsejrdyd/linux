@@ -63,7 +63,7 @@ VNCSERVERARGS[2]="-geometry 800x600 -nolisten tcp -localhost"VNCSERVERS="2:root"
 # fc-cache 
 ```
 
-## 1. 이더넷 이름 변경
+## 이더넷 이름 변경
 ```
 # vi /etc/default/grub
 GRUB_CMDLINE_LINUX 라인 맨뒤에 "net.ifnames=0 biosdevname=0" 추가
