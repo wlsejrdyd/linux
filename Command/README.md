@@ -28,7 +28,7 @@ exit
 # 13번 라인의 줄만 가져와서 출력
 sed -n '13p' test.txt
 
-# for 반복문을 사용하여 전체 라인을 한줄씩 출력 예제
+# for 문 사용해서 전체 라인을 한줄씩 출력. 예제
 line=10
 for ((i=0; i<=line; i++)); do
 sed -n ${i}p test.txt
