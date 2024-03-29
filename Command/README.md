@@ -28,5 +28,5 @@ ps -ef | sort -k4
 * 문자열 강조하고 싶을때 사용
 * 검색하는 문자열이 포함된 결과값이 많을때 사용
 ```
-cat /var/named/domain.zone | grep "\b0\.0\.0\.0\b"
+cat /var/named/domain.zone | grep "\b0.0.0.0\b"
 ```
