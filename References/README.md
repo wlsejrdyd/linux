@@ -116,3 +116,19 @@ export HISTTIMEFORMAT
 * 백업과 복구: 파일 시스템의 백업과 복구 절차도 고려해야 합니다. ext4는 일반적으로 더 간단한 백업 및 복구 프로세스를 가지고 있습니다.
 * 지원과 안정성: 둘 다 Linux 시스템에서 잘 지원되며 안정적으로 동작하지만, 특정 배포판이나 환경에 따라 지원 수준이 다를 수 있습니다.
 * 요약하자면, ext4는 다양한 용도에서 잘 작동하며 데이터의 안정성과 일관성을 중요시하는 시스템에 적합할 수 있습니다. 반면에 XFS는 대용량 파일 및 데이터 처리를 위해 최적화되어 있으며, 확장성과 성능이 중요한 시스템에 적합할 수 있습니다. 선택은 사용하는 시스템의 요구 사항과 용도에 따라 결정되어야 합니다.
+
+## 사용자 PC의 CMD SSH 접근 시 hostname 으로 접근하기 위한 설정
+* 사용자 Profile 경로의 .ssh 폴더에서, config 파일을 생성한다.
+	* 만약 .ssh 폴더가 없다면 CMD에서 서버로 접근 해보자.
+```
+아래 포맷을 이용하여 적절한 설정값을 입력한다.
+
+#Host test-server-01
+#	HostName {IP}
+#	User {ID}
+#	Port {PORT}
+#	IdentityFile C:\Users\SNUH\.ssh\{PEM FILE}
+#	HostKeyAlgorithms ssh-dss,ssh-rsa,rsa-sha2-512,rsa-sha2-256,ecdsa-sha2-nistp256,ssh-ed25519
+```
+* PEM => ssh-keygen 명령어로 생성 된 계정의 PRIVATE KEY 내용을 가지고 있는 파일. ~~(공개키말고)~~ 
+	* 참고로 테스트는 -t ecdsa 암호화 알고리즘을 사용 함
