@@ -34,7 +34,7 @@ setenforce 0
 ```
 VAR1=/etc/sysctl.d/k8s.conf && echo "net.bridge.bridge-nf-call-ip6tables = 1" >>${VAR1} && echo "net.bridge.bridge-nf-call-iptables = 1" >>${VAR1} && echo "net.ipv4.ip_forward = 1" >>${VAR1} && sysctl --system
 ```
-* 확인 `lsmod | grep br_netfilter` , 만약 적용이 안되어있다면 `modprove br_netfilter` 명령어로 적용.
+* 확인 `lsmod | grep br_netfilter` , 만약 적용이 안되어있다면 `modprobe br_netfilter` 명령어로 적용.
 
 ```
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
@@ -54,18 +54,18 @@ dnf install crio && systemctl enable --now crio
 ```
 ```
 hostnamectl set-hostname HOSTNAME (hosts 에도 추가)
-cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
-baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.25/rpm/
 enabled=1
 gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.25/rpm/repodata/repomd.xml.key
 EOF
 dnf --showduplicates list  kubeadm
 systemctl enable kubelet.service
 ```
+
 ```
 kubeadm init --pod-network-cidr=172.30.0.0/16| tee kubeadm.out
 mkdir -p $HOME/.kube && cp -i /etc/kubernetes/admin.conf $HOME/.kube/config && chown $(id -u):$(id -g) $HOME/.kube/config && export KUBECONFIG=/etc/kubernetes/admin.conf
