@@ -157,6 +157,9 @@ kubectl -n kubernetes-dashboard create token admin-user | tee admin-user.token
 
 kubectl proxy &
 ```
+* 대시보드 token 으로 로그인하고, 시간제한이있나봄. token 자체를 다시 발급해야하므로 발급 명령어를 알아두는 것이 좋아보임.
+* 대시보드에서 신규 리소스를 생성 하여 외부 접근 테스트 완료.
 
 ## DockerFile Sample
 * acadamine dockerfile 사용해서... 2차 배포는 절대 금지
+* docker registry 에 올라간 이미지가 kubentes 에서 가져와서 쓸 수 있는지?
