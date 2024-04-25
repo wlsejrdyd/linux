@@ -116,3 +116,42 @@ EOF
 systemctl restart docker
 docker pull 10.10.10.10:5000/nginx-test
 ```
+
+## Kubernetes dashboard install
+* kubernetes-dashboard service 는 공식 홈페이지에서 [다운로드](https://kubernetes.io/ko/docs/tasks/access-application-cluster/web-ui-dashboard/) 받음.
+
+```
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.6.1/aio/deploy/recommended.yaml
+kubectl get namespaces
+kubectl get -n kubernetes-dashboard svc
+kubectl describe -n kubernetes-dashboard svc kubernetes-dashboard
+kubectl edit -n kubernetes-dashboard svc kubernetes-dashboard
+# 내용 수정 type: ClusterIP => NodePort
+
+cat <<EOF> 
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard
+  EOF
+
+cat <<EOF> serviceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+EOF
+
+kubectl create -f clusterRoleBinding.yaml
+kubectl create -f serviceAccount.yaml
+kubectl -n kubernetes-dashboard create token admin-user | tee admin-user.token
+```
