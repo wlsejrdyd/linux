@@ -3,7 +3,7 @@
 - [x] 1. 쿠버네티스 클러스터 구성
 - [x] 2. 도커 private registry 구성
 - [x] 3. 폐쇄망 환경에서 도커 개인 레지스트리를 이용하여 이미지 가져오기
-- [] 4. 쿠버네티스 대쉬보드 설치
+- [ ] 4. 쿠버네티스 대쉬보드 설치
 5. 간단한 DockerFile 만들기
 6. private registry 에 DockerFile push
 7. CI/CD 구성하여 배포 테스트
