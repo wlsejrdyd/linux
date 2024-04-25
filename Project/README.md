@@ -154,4 +154,9 @@ EOF
 kubectl create -f clusterRoleBinding.yaml
 kubectl create -f serviceAccount.yaml
 kubectl -n kubernetes-dashboard create token admin-user | tee admin-user.token
+
+kubectl proxy &
 ```
+
+## DockerFile Sample
+* acadamine dockerfile 사용해서... 2차 배포는 절대 금지
