@@ -55,6 +55,13 @@ sed -i 's/SystemdCgroup \= false/SystemdCgroup \= true/g' /etc/containerd/config
 
 yum install -y kubelet kubeadm
 systemctl enable kubelet && systemctl start kubelet
+echo 'source <(kubectl completion bash)' >>~/.bashrc && echo 'alias k=kubectl' >>~/.bashrc && echo 'complete -o default -F __start_kubectl k' >>~/.bashrc && source ~/.bashrc
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl-convert"
+curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl-convert.sha256"
+echo "$(cat kubectl-convert.sha256) kubectl-convert" | sha256sum --check
+install -o root -g root -m 0755 kubectl-convert /usr/local/bin/kubectl-convert
+kubectl convert --help
+rm kubectl-convert kubectl-convert.sha256
 
 yum update && init 6
 
@@ -74,6 +81,13 @@ cp -ar /etc/kubernetes/admin.conf ~/.kube/config
 
 master node 와 join 진행
 ```
+
+* 다시 Master node 작업
+```
+kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+kubectl get nodes
+```
+* 위 주소로 pod networks addon 실행이 안될 시 : kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/calico.yaml
 
 ## Docker Private Registry 구성
 * 환경 : 리소스 와 테섭이 없기때문에 master worker node를 재활용한다.
