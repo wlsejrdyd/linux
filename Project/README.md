@@ -5,8 +5,9 @@
 - [x] 3. 폐쇄망 환경에서 도커 개인 레지스트리를 이용하여 이미지 가져오기
 - [x] 4. 쿠버네티스 대쉬보드 설치
 - [x] 5. 간단한 DockerFile 만들기
-- [ ] 6. private registry 에 DockerFile push
-- [ ] 7. CI/CD 구성하여 배포 테스트
+- [x] 6. private registry 에 DockerFile push
+- [ ] 7. private 또는 local docker image 를 이용하여 kubernetes로 배포하기
+- [ ] 8. CI/CD 구성하여 배포 테스트
 
 ## Kubernetes cluster
 * 환경 : localhost hyper-v
@@ -104,6 +105,7 @@ docker tag nginx:latest localhost:5000/nginx-test:latest
 docker image push localhost:5000/nginx-test:latest
 curl -X GET http://localhost:5000/v2/_catalog
 ```
+* 재부팅 후 registry 목록이 날아감,,, 이게 맞긴한데 저장하는 방법이 필요할듯
 
 * worker node CMD HISTORY
 ```
@@ -160,6 +162,23 @@ kubectl proxy &
 * 대시보드 token 으로 로그인하고, 시간제한이있나봄. token 자체를 다시 발급해야하므로 발급 명령어를 알아두는 것이 좋아보임.
 * 대시보드에서 신규 리소스를 생성 하여 외부 접근 테스트 완료.
 
-## DockerFile Sample
+## Sample DockerFile 업로드
 * acadamine dockerfile 사용해서... 2차 배포는 절대 금지
 * docker registry 에 올라간 이미지가 kubentes 에서 가져와서 쓸 수 있는지?
+
+* Master Node에서 acadmine docker file 을 사용. (github 에 있음)
+```
+cd /root/docker/Section-3/data-volumes-03-adj-node-code/data-volumes-03-adj-node-code
+docker build . -t node-01:latest
+docker images
+```
+
+## Sample Docker image Push (private registry)
+* 위 구성해둔 registry 에 생성한 Dockerfile 을 push 한다.
+
+* matser node commend history
+```
+docker tag node-01:latest localhost:5000/node-01:latest
+docker image push localhost:5000/node-01:latest
+docker images
+```
