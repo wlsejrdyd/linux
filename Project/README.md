@@ -7,7 +7,8 @@
 - [x] 5. 간단한 DockerFile 만들기
 - [x] 6. private registry 에 DockerFile push
 - [x] 7. private 또는 local docker image 를 이용하여 kubernetes로 배포하기
-- [ ] 8. CI/CD 구성하여 배포 테스트
+- [ ] 8. NodePort 또는 LoadBalancer Type 의 경우 nodeport를 80으로 변경하기
+- [ ] 9. CI/CD 구성하여 배포 테스트
 
 ## Kubernetes cluster
 * 환경 : localhost hyper-v
