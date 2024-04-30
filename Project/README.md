@@ -223,6 +223,6 @@ spec:
 status: {}
 ```
 * 참고 : 삭제는 **ctr -a /run/containerd/containerd.sock --namespace k8s.io images del 10.10.10.10:5000/node-01:latest**
- - k8s는 containerd runtime 사용하고있어서 docker를 인식할 수 없음
-  + IfNotPresent (local 먼저, 없으면 repository), Always (항상 repository), Never (항상 local)
-   + 위 작업은 docker image를 containerd image 로 변환 하는 작업이 포함되어있고, **모든 노드에 이미지가 등록되어야 함**
+    - k8s는 containerd runtime 사용하고있어서 docker를 인식할 수 없음
+        + IfNotPresent (local 먼저, 없으면 repository), Always (항상 repository), Never (항상 local)
+            + 위 작업은 docker image를 containerd image 로 변환 하는 작업이 포함되어있고, **모든 노드에 이미지가 등록되어야 함**
