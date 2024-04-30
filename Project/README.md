@@ -14,7 +14,7 @@
 * vm : rocky 9.3 minimal VM *2
 * resource : 2cpu, 2gb
 
-* Master Node CMD HISTORY
+* master node command history
 ```
 swapoff -a
 systemctl stop firewall-cmd && systemctl disable firewalld
@@ -70,7 +70,7 @@ mkdir -p ~/.kube && cp -ar /etc/kubernetes/admin.conf ~/.kube/config
 kubeadm init --control-plane-endpoint=master
 ```
 
-* Worker Node CMD HISTORY
+* worker node command history
 ```
 yum update && init 6 까지 동일
 .
@@ -93,7 +93,7 @@ kubectl get nodes
 ## Docker Private Registry 구성
 * 환경 : 리소스 와 테섭이 없기때문에 master worker node를 재활용한다.
 
-* master node CMD HISTORY
+* master node command history
 ```
 docker pull registry
 docker container run -d -p 5000:5000 --name registry registry
@@ -107,7 +107,7 @@ curl -X GET http://localhost:5000/v2/_catalog
 ```
 * 재부팅 후 registry 목록이 날아감,,, 이게 맞긴한데 저장하는 방법이 필요할듯
 
-* worker node CMD HISTORY
+* worker node command history
 ```
 cat <<EOF> /etc/docker/daemon.json
 {
@@ -175,13 +175,13 @@ docker build . -t node-01:latest
 ## Sample Docker image Push (private registry)
 * 위 구성해둔 registry 에 생성한 Dockerfile 을 push 한다.
 
-* matser node commend history
+* matser node command history
 ```
 docker tag node-01:latest localhost:5000/node-01:latest
 docker image push localhost:5000/node-01:latest
 ```
 
-* worker node commend history
+* worker node command history
 ```
 docker pull 10.10.10.10:5000/node-01:latest
 docker save -o node-01:latest.tar 10.10.10.10:5000/node-01:latest
