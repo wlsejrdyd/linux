@@ -6,7 +6,7 @@
 - [x] 4. 쿠버네티스 대쉬보드 설치
 - [x] 5. 간단한 DockerFile 만들기
 - [x] 6. private registry 에 DockerFile push
-- [ ] 7. private 또는 local docker image 를 이용하여 kubernetes로 배포하기
+- [x] 7. private 또는 local docker image 를 이용하여 kubernetes로 배포하기
 - [ ] 8. CI/CD 구성하여 배포 테스트
 
 ## Kubernetes cluster
@@ -170,7 +170,6 @@ kubectl proxy &
 ```
 cd /root/docker/Section-3/data-volumes-03-adj-node-code/data-volumes-03-adj-node-code
 docker build . -t node-01:latest
-docker images
 ```
 
 ## Sample Docker image Push (private registry)
@@ -180,9 +179,50 @@ docker images
 ```
 docker tag node-01:latest localhost:5000/node-01:latest
 docker image push localhost:5000/node-01:latest
-docker images
 ```
 
+* worker node commend history
+```
+docker pull 10.10.10.10:5000/node-01:latest
+docker save -o node-01:latest.tar 10.10.10.10:5000/node-01:latest
+ctr -a /run/containerd/containerd.sock --namespace k8s.io image import node-01.tar
+ctr -a /run/containerd/containerd.sock --namespace k8s.io image ls | grep node-01
+kubectl create deployment local-image-node-01 --replicas=2 --image=10.10.10.10:5000/node-01 --dry-run=client -o yaml > local-image-node-01.yaml
+vi local-image-node-01.yaml
+# 내용 추가 : imagePullPolicy: Never
+kubectl create -f local-image-node-01.yaml
+kubectl expose deployment local-image-node-01 --name="local-image-node-01" --type=NodePort --port=80 --target-port=80
+kubectl get service
+curl localhost:31458
 
-
-docker pull 10.104.254.34:5000/node-01:latest
+# 참고 양식 (Deployment)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: local-image-node-01
+  name: local-image-node-01
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: local-image-node-01
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: local-image-node-01
+    spec:
+      containers:
+      - image: 10.10.10.10:5000/node-01
+        imagePullPolicy: Never
+        name: node-01
+        resources: {}
+status: {}
+```
+* 참고 : 삭제는 **ctr -a /run/containerd/containerd.sock --namespace k8s.io images del 10.10.10.10:5000/node-01:latest**
+ - k8s는 containerd runtime 사용하고있어서 docker를 인식할 수 없음
+ + IfNotPresent (local 먼저, 없으면 repository), Always (항상 repository), Never (항상 local)
+ + 위 작업은 docker image를 containerd image 로 변환 하는 작업이 포함되어있고, **모든 노드에 이미지가 등록되어야 함**
