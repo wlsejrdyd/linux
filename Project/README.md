@@ -130,7 +130,7 @@ kubectl describe -n kubernetes-dashboard svc kubernetes-dashboard
 kubectl edit -n kubernetes-dashboard svc kubernetes-dashboard
 # 내용 수정 type: ClusterIP => NodePort
 
-cat <<EOF> clusterRoleBinding.yam
+cat <<EOF> clusterRoleBinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
