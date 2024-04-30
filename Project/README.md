@@ -182,3 +182,7 @@ docker tag node-01:latest localhost:5000/node-01:latest
 docker image push localhost:5000/node-01:latest
 docker images
 ```
+
+
+
+docker pull 10.104.254.34:5000/node-01:latest
