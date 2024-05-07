@@ -7,7 +7,7 @@
 - [x] 5. 간단한 DockerFile 만들기
 - [x] 6. private registry 에 DockerFile push
 - [x] 7. private 또는 local docker image 를 이용하여 kubernetes로 배포하기
-- [ ] 8. NodePort 또는 LoadBalancer Type 의 경우 nodeport를 80으로 변경하기
+- [x] 8. NodePort 또는 LoadBalancer Type 의 경우 nodeport를 80으로 변경하기
 - [ ] 9. CI/CD 구성하여 배포 테스트
 
 ## Kubernetes cluster
@@ -67,9 +67,11 @@ rm kubectl-convert kubectl-convert.sha256
 
 yum update && init 6
 
-mkdir -p ~/.kube && cp -ar /etc/kubernetes/admin.conf ~/.kube/config
 kubeadm init --control-plane-endpoint=master
+또는 kubeadm init --pod-network-cidr=10.244.0.0/16
+mkdir -p ~/.kube && cp -ar /etc/kubernetes/admin.conf ~/.kube/config
 ```
+* networks 를 설정하지않으면 flannel 설치 후에 IP 할당이 제대로 안돼서 cidr 를 다시 설정해야하므로 아싸리 두번째걸로 하는게 좋아보임
 
 * worker node command history
 ```
@@ -78,8 +80,8 @@ yum update && init 6 까지 동일
 .
 .
 vi /etc/kubernetes/admin.conf
-(Master node 내용을 복/붙 합니다.)
-cp -ar /etc/kubernetes/admin.conf ~/.kube/config
+(Master node 내용복붙)
+mkdir -p ~/.kube && cp -ar /etc/kubernetes/admin.conf ~/.kube/config
 
 master node 와 join 진행
 ```
@@ -104,7 +106,6 @@ docker save -o nginx.tar nginx:latest
 docker load -i nginx.tar
 docker tag nginx:latest localhost:5000/nginx-test:latest
 docker image push localhost:5000/nginx-test:latest
-curl -X GET http://localhost:5000/v2/_catalog
 ```
 * 재부팅 후 registry 목록이 날아감,,, 이게 맞긴한데 저장하는 방법이 필요할듯
 
@@ -144,7 +145,7 @@ subjects:
 - kind: ServiceAccount
   name: admin-user
   namespace: kubernetes-dashboard
-  EOF
+EOF
 
 cat <<EOF> serviceAccount.yaml
 apiVersion: v1
@@ -156,6 +157,7 @@ EOF
 
 kubectl create -f clusterRoleBinding.yaml
 kubectl create -f serviceAccount.yaml
+kubectl describe -n kubernetes-dashboard svc kubernetes-dashboard
 kubectl -n kubernetes-dashboard create token admin-user | tee admin-user.token
 
 kubectl proxy &
@@ -227,3 +229,45 @@ status: {}
     - k8s는 containerd runtime 사용하고있어서 docker를 인식할 수 없음
     + IfNotPresent (local 먼저, 없으면 repository), Always (항상 repository), Never (항상 local)
     + 위 작업은 docker image를 containerd image 로 변환 하는 작업이 포함되어있고, **모든 노드에 이미지가 등록되어야 함**
+
+    ## NodePort 또는 LoadBalancer Type 의 경우 nodeport를 80으로 변경하기
+    * 포트자체를 바꾸지 않고, reverse proxy (nginx) 를 이용하여 구성함
+    ```
+    yum install nginx
+    systemctl enable --now nginx
+    vi /etc/nginx/nginx.conf
+
+
+    http {
+      server {
+        listen       80;
+        server_name  deok.kr;
+        location / {
+                proxy_pass http://192.168.219.3:30345;
+        }
+      }
+      server {
+        listen       80;
+        server_name www.deok.kr;
+        location / {
+                proxy_pass http://192.168.219.3:30345;
+        }
+      }
+      server {
+        listen       80;
+        server_name docker.deok.kr;
+        location / {
+                proxy_pass http://192.168.219.2:5000;
+        }
+      }
+      server {
+        listen       80;
+        server_name k8s.deok.kr;
+        location / {
+                proxy_pass https://192.168.219.3:31259;
+        }
+      }
+    }
+    ```
+    * 상단에 공유기가 있어서 포트를 하나밖에 못 사용하는 상황임, 공유기에서 해결할까 하다가 nginx 를 설치하여 proxy_pass derective 사용함.
+    * 참고로 master , node01 서버의 아이피가 잠깐 바뀜.
