@@ -25,7 +25,7 @@ hostnamectl set-hostname master
 echo "10.10.10.10 master" >> /etc/hosts
 echo "10.10.10.11 node01" >> /etc/hosts
 
-cat << EOF > kubernetes.repo
+cat << EOF > /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
 baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
