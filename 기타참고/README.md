@@ -135,3 +135,9 @@ init 6
 ```
 * PEM => ssh-keygen 명령어로 생성 된 계정의 PRIVATE KEY 내용을 가지고 있는 파일. ~~(공개키말고)~~ 
 	* 참고로 테스트는 -t ecdsa 암호화 알고리즘을 사용 함
+
+## 언어셋 설치 안됐을때
+* 9 버전부터 특성인지 모르겠는데, 언어셋이 설치때 사용 한 것을 제외하고 아묵것도 안보임 ㅋ DVD 안에도 패키지가 있으니 연결해서 아래와 같이 설치한다.
+```
+yum install langpakcs-en glibc-all-langpacks
+```
