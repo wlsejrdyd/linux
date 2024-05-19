@@ -152,7 +152,6 @@ yum install langpakcs-en glibc-all-langpacks
 * 
 ### CentOS 9.x 중요 변화
 * 크게 보면 컨테이너 기능이 추가가 되었다는 점
-	- Container tools
 	+ podman : docker를 대체하는 rootless container tool, 더 안전하고 효과적으로 관리할 수 있게 됨.
 	+ buildah : 컨테이너 이미지를 빌드하는 도구가 추가 됨???
 	+ kubernete 통합
