@@ -1,5 +1,5 @@
 
-# Apache 개인 참고자료 정리
+# apache-config
 
 ## URL replace
 
@@ -107,18 +107,3 @@ for i in `ipcs -s|grep nobody|awk '{print $2}'`;do ipcrm -s $i;done;
 mv #{APACHE_HOME}/logs/httpd.pid ${APACHE_HOME}/logs/httpd.pid.old
 ```
 - 접속자 수 증가로 웹 서버 부하가 발생하면 느려지거나 증상 없이 간혈적으로 멈추곤 할 때 의심해볼 수 있다.
-
-# error
-## 403 error
-* httpd.conf
-```
-<Directory />
- ~
- ~
- ~
- Order allow,deny
- Allow from all
- Require all granted
-</Directory>
-```
-* include 파일 체크 : httpd.conf 파일에 include 구분중 httpd-userdir.conf 가 주석해제 되어있다면 httpd-userdir.conf 쪽 파일에도 Require all granted를 추가.

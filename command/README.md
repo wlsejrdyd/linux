@@ -24,12 +24,12 @@ screen -list
 screen -r jdy
 ```
 ## sed
-* 13 line print
+* 13번째 라인 출력
 ```
 sed -n '13p' test.txt
 ```
 
-* for 문 : 전체 라인 한줄씩 출력
+* 전체 라인 한줄씩 출력
 ```
 line=10
 for ((i=0 i<=line; i++)); do
@@ -50,3 +50,18 @@ ps -ef | sort -k4
 cat /var/named/domain.zone | grep "\b1.1.1.1\b"
 ```
 - 예제 : grep "1.1.1.1" 검색 할 경우 1.1.1.10~ 무수히 많은 중복 값이 발생 함
+
+# apache-error
+## 403 error
+* httpd.conf
+```
+<Directory />
+ ~
+ ~
+ ~
+ Order allow,deny
+ Allow from all
+ Require all granted
+</Directory>
+```
+* include 파일 체크 : httpd.conf 파일에 include 구분중 httpd-userdir.conf 가 주석해제 되어있다면 httpd-userdir.conf 쪽 파일에도 Require all granted를 추가.
