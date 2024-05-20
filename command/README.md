@@ -1,49 +1,52 @@
-# 안외워지는 명령어 정리
+
+# command
+
 ## curl
 
 ## find
 
 ## screen
-* 시간이 오래걸리는 명령어를 실행시켰는데 세션이 계속 종료된다면, 세션이 종료되어도 명령어가 계속 동작될 수 있게 끔 screen 명령어를 통해 끊임없이 작업진행이 가능하다
-* rsync 로 대용량 데이터를 동기화한다는 가정
+* 스크린 생성
 ```
-# 스크린 생성
-screen -S jdy  
+screen -S jdy  
 rsync -avz /data1/* /data2/
-
-# 스크린 나가기
+```
+* 스크린 나가기
+```
 ctrl + a + d
-
-# 켜져있는 스크린 보기
+```
+  * 스크린 리스트 보기
+```
 screen -list
-
-# 스크린 재접속
+```
+* 스크린 재접속
+```
 screen -r jdy
-exit
 ```
-
 ## sed
-* 문서 한줄씩 읽어들이고 싶을때 사용
+* 13 line print
 ```
-# 13번 라인의 줄만 가져와서 출력
 sed -n '13p' test.txt
+```
 
-# for 문 사용해서 전체 라인을 한줄씩 출력. 예제
+* for 문 : 전체 라인 한줄씩 출력
+```
 line=10
-for ((i=0; i<=line; i++)); do
-sed -n ${i}p test.txt
+for ((i=0 i<=line; i++)); do
+sed -n ${i}p {FILE}
 done
 ```
+  
 
 ## sort
-* 검색 된 값의 n번째 열로 정렬하고 싶을때 사용
+* 4번쨰 컬럼의 값으로 정렬
 ```
-# 4번째 컬럼의 값으로 정렬
 ps -ef | sort -k4
 ```
 
 ## grep
+- 검색하는 문자열이 포함 된 결과 값이 많을 때 문자열을 강조
 ```
-# 검색하는 문자열이 포함된 결과값이 많을때 문자열 강조
-cat /var/named/domain.zone | grep "\b0.0.0.0\b"
+cat /var/named/domain.zone | grep "\b1.1.1.1\b"
 ```
+- 예제 : grep "1.1.1.1" 검색 할 경우 1.1.1.10~ 무수히 많은 중복 값이 발생 함
