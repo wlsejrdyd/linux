@@ -11,7 +11,7 @@
 </VirtualHost>
 ```
 * 웹브라우저에서 www.a.com 이라는 도메인을 입력하면 www.b.com 으로 리다이렉팅 되게할때 사용
-
+a
 ## AllowOverride AuthConfig
 * 클라이언트가 URL을 통해 접근할때 .htaccess 를 이용해 사용자인증을 받게할 수 있음
 ```
