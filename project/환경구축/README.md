@@ -18,7 +18,7 @@
 * master node command history
 ```
 swapoff -a
-systemctl stop firewall-cmd && systemctl disable firewalld
+systemctl stop firewalld && systemctl disable firewalld
 sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
 sed -i '/swap/d' /etc/fstab
 hostnamectl set-hostname master
