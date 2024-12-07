@@ -17,7 +17,7 @@
   + OS : Rocky Linux release 9.4
   + CPU : 2c
   + 메모리 : 4gb
-  + applcation : nodejs(16.20.2)
+  + application : nodejs(16.20.2) , mariadb(10.5.22)
 
 ## Source
 ### index.js
@@ -329,4 +329,25 @@ async function addUser(username, password) {
   </div>
 </body>
 </html>
+```
+
+## taskdb DB
+### 
+```
+CREATE TABLE tasks (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  assignedTo VARCHAR(50) NOT NULL,
+  dueDate DATETIME NOT NULL,
+  createdBy VARCHAR(50) NOT NULL,
+  status ENUM('Incomplete', 'Complete') DEFAULT 'Incomplete',
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL
+);
 ```
