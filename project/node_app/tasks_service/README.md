@@ -282,9 +282,9 @@ async function addUser(username, password) {
             <td>${task.dueDate}</td>
             <td>${task.createdBy}</td>
             <td>
-              ${task.status === 'Incomplete'
+              ${task.status === 'Complete'
                 ? `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">Complete</button>`
-                : 'Completed'}
+                : `<button onclick="completeTask(${task.id})" class="btn btn-danger">Incomplete</button>`}
             </td>
           `;
           taskList.appendChild(row);
