@@ -9,7 +9,7 @@
   + [x] 작업 할당 된 사용자만 task status 변경 기능
   + [x] 회원가입 추가
   + [ ] 비밀변호 변경
-  + [ ] 알림 기능 추가
+  + [?] 알림 기능 추가
   + [ ] task list 날짜 및 사용자 별 필터링 추가
   + [ ] 시스템팀 관리 웹서비스 URL 목록 페이지 생성
   + [ ] 시스템팀 관리 솔루션 설치 파일 다운로드 및 설치 매뉴얼 페이지 생성
@@ -54,6 +54,31 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
+// 회원가입 페이지 라우트
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'register.html'));
+});
+
+// 사용자 회원가입 처리
+app.post('/register', async (req, res) => {
+  const { username, password } = req.body;
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10); // 비밀번호 해싱
+    await connection.execute(
+      'INSERT INTO users (username, password) VALUES (?, ?)',
+      [username, hashedPassword]
+    );
+    res.redirect('/login'); // 회원가입 후 로그인 페이지로 리디렉트
+  } catch (error) {
+    console.error('Error registering user:', error);
+    res.status(500).send('Failed to register user');
+  } finally {
+    await connection.end();
+  }
+});
+
 app.get('/', (req, res) => {
   // 로그인 상태 확인
   if (req.session.user) {
@@ -80,7 +105,7 @@ app.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid username or password' });
   }
 
-  req.session.user = { id: rows[0].id, username: rows[0].username };
+  req.session.user = { id: rows[0].id, username: rows[0].username, role: rows[0].role };
   res.redirect('/dashboard');
   await connection.end();
 });
@@ -107,26 +132,20 @@ app.get('/tasks', async (req, res) => {
     ORDER BY
       CASE WHEN status = 'Incomplete' THEN 1 ELSE 2 END, createdAt DESC
   `);
+  // KST로 변환
+  const tasks = rows.map(task => {
+    const dueDate = new Date(task.dueDate);
+    const kstDate = new Date(dueDate.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+    task.dueDate = kstDate.toISOString().replace('T', ' ').substring(0, 19); // YYYY-MM-DD HH:MM:SS 형식
+    return task;
+  });
   res.json(rows);
   await connection.end();
 });
 
-//// 작업 생성 API
-//app.post('/tasks', async (req, res) => {
-//  const { title, content, assignedTo, dueDate } = req.body;
-//  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-//
-//  const connection = await mysql.createConnection(dbConfig);
-//  await connection.execute(`
-//    INSERT INTO tasks (title, content, assignedTo, dueDate, createdBy)
-//    VALUES (?, ?, ?, ?, ?)
-//  `, [title, content, assignedTo, dueDate, req.session.user.username]);
-//
-//  res.json({ success: true });
-//  await connection.end();
-//});
 app.post('/tasks', async (req, res) => {
   console.log('Request Body:', req.body); // 요청 데이터 출력
+
   const { title, content, assignedTo, dueDate } = req.body;
 
   if (!req.session.user) {
@@ -147,7 +166,6 @@ app.post('/tasks', async (req, res) => {
     await connection.end();
   }
 });
-
 
 // 작업 완료 처리 API
 app.put('/tasks/:id', async (req, res) => {
@@ -171,6 +189,22 @@ app.put('/tasks/:id', async (req, res) => {
   await connection.end();
 });
 
+// 작업 삭제 API (관리자만 가능)
+app.delete('/tasks/:id', async (req, res) => {
+  const { id } = req.params;
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    await connection.execute('DELETE FROM tasks WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).json({ error: 'Failed to delete task' });
+  } finally {
+    await connection.end();
+  }
+});
+
 // 로그아웃
 app.get('/logout', (req, res) => {
   req.session.destroy();
@@ -181,27 +215,6 @@ app.get('/logout', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
-
-// 새 사용자 추가 함수
-async function addUser(username, password) {
-  const hashedPassword = await bcrypt.hash(password, 10); // 비밀번호 해싱
-  const connection = await mysql.createConnection(dbConfig);
-
-  try {
-    await connection.execute(
-      'INSERT INTO users (username, password) VALUES (?, ?)',
-      [username, hashedPassword]
-    );
-    console.log(`User "${username}" added successfully.`);
-  } catch (error) {
-    console.error('Error adding user:', error);
-  } finally {
-    await connection.end();
-  }
-}
-
-// 사용자 계정 생성
-//addUser('admin', 'admin123');
 ```
 
 ### dashboard.html
@@ -213,6 +226,7 @@ async function addUser(username, password) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 </head>
 <body>
   <div class="container mt-5">
@@ -257,7 +271,23 @@ async function addUser(username, password) {
     </table>
   </div>
 
+  <!-- JavaScript 코드 -->
   <script>
+    // 알림 권한 요청
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // 알림 함수
+    function showNotification(title) {
+      if (Notification.permission === 'granted') {
+        new Notification('New Task Created', {
+          body: `Task: ${title} has been created.`,
+          icon: '/icon.png' // 알림 아이콘 (옵션)
+        });
+      }
+    }
+
     // Load users into the "Assign To" dropdown
     fetch('/users')
       .then(res => res.json())
@@ -287,13 +317,46 @@ async function addUser(username, password) {
             <td>${task.createdBy}</td>
             <td>
               ${task.status === 'Complete'
-                ? `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">Complete</button>`
-                : `<button onclick="completeTask(${task.id})" class="btn btn-danger">Incomplete</button>`}
+                ? `<span class="text-success">Complete</span>`
+                : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">Mark Complete</button>`}
             </td>
           `;
           taskList.appendChild(row);
         });
       });
+
+    // Create a new task (중복 이벤트 리스너 방지)
+    const taskForm = document.getElementById('task-form');
+    taskForm.addEventListener('submit', handleTaskSubmit);
+
+    function handleTaskSubmit(e) {
+      e.preventDefault();
+
+      const task = {
+        title: document.getElementById('title').value,
+        content: document.getElementById('content').value,
+        assignedTo: document.getElementById('assignedTo').value,
+        dueDate: document.getElementById('dueDate').value
+      };
+
+      fetch('/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Failed to create task: ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('Task created:', data);
+          showNotification(task.title); // 알림 호출
+          location.reload(); // 성공 시 페이지 새로고침
+        })
+        .catch(error => console.error('Error creating task:', error));
+    }
 
     // Complete a task
     function completeTask(id) {
@@ -335,6 +398,36 @@ async function addUser(username, password) {
 </html>
 ```
 
+### register.html
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h1>Register</h1>
+    <form action="/register" method="POST">
+      <div class="mb-3">
+        <label for="username" class="form-label">Username</label>
+        <input type="text" class="form-control" id="username" name="username" required>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Register</button>
+    </form>
+    <p class="mt-3">Already have an account? <a href="/login">Login here</a></p>
+  </div>
+</body>
+</html>
+```
+
 ## taskdb DB
 ### 
 ```
@@ -347,11 +440,14 @@ CREATE TABLE tasks (
   createdBy VARCHAR(50) NOT NULL,
   status ENUM('Incomplete', 'Complete') DEFAULT 'Incomplete',
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+)DEFAULT CHARSET=UTF8;
 
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL
-);
+)DEFAULT CHARSET=UTF8;
+
+ALTER TABLE users ADD COLUMN role ENUM('admin', 'user') DEFAULT 'user';
+
 ```
