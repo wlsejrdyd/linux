@@ -10,7 +10,7 @@
   + [x] 회원가입 추가
   + [ ] 비밀변호 변경
   + [?] 알림 기능 추가
-  + [ ] task list 날짜 및 사용자 별 필터링 추가
+  + [x] task list 날짜 및 사용자 별 필터링 추가
   + [ ] 시스템팀 관리 웹서비스 URL 목록 페이지 생성
   + [ ] 시스템팀 관리 솔루션 설치 파일 다운로드 및 설치 매뉴얼 페이지 생성
   + [ ] 일일점검 체크 리스트
@@ -253,6 +253,15 @@ app.listen(PORT, () => {
       </div>
       <button type="submit" class="btn btn-primary">Create Task</button>
     </form>
+    <div class="mb-3">
+      <label for="filterDate" class="form-label">Filter by Date</label>
+      <input type="date" class="form-control" id="filterDate">
+    </div>
+    <div class="mb-3">
+      <label for="filterUser" class="form-label">Filter by User</label>
+      <input type="text" class="form-control" id="filterUser" placeholder="Enter username">
+    </div>
+    <button onclick="filterTasks()" class="btn btn-primary">Filter</button>
 
     <h2>Task List</h2>
     <table class="table">
@@ -299,7 +308,7 @@ app.listen(PORT, () => {
           option.textContent = user;
           assignToSelect.appendChild(option);
         });
-      });
+    });
 
     // Load tasks into the table
     fetch('/tasks')
@@ -322,8 +331,8 @@ app.listen(PORT, () => {
             </td>
           `;
           taskList.appendChild(row);
-        });
-      });
+       });
+    });
 
     // Create a new task (중복 이벤트 리스너 방지)
     const taskForm = document.getElementById('task-form');
@@ -363,6 +372,42 @@ app.listen(PORT, () => {
       fetch(`/tasks/${id}`, { method: 'PUT' })
         .then(res => res.json())
         .then(() => location.reload());
+    }
+
+    function filterTasks() {
+      const filterDate = document.getElementById('filterDate').value;
+      const filterUser = document.getElementById('filterUser').value;
+
+      fetch('/tasks')
+        .then(res => res.json())
+        .then(tasks => {
+          let filteredTasks = tasks;
+
+          if (filterDate) {
+            filteredTasks = filteredTasks.filter(task => task.dueDate.startsWith(filterDate));
+          }
+
+          if (filterUser) {
+            filteredTasks = filteredTasks.filter(task => task.assignedTo === filterUser);
+          }
+
+          const taskList = document.getElementById('task-list');
+          taskList.innerHTML = ''; // 기존 목록 지우기
+
+          filteredTasks.forEach(task => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${task.id}</td>
+              <td>${task.title}</td>
+              <td>${task.content.replace(/\n/g, '<br>')}</td>
+              <td>${task.assignedTo}</td>
+              <td>${task.dueDate}</td>
+              <td>${task.createdBy}</td>
+              <td>${task.status}</td>
+            `;
+            taskList.appendChild(row);
+          });
+        });
     }
   </script>
 </body>
