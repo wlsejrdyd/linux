@@ -126,12 +126,15 @@ app.get('/dashboard', (req, res) => {
 
 // 작업 목록 API
 app.get('/tasks', async (req, res) => {
+  const limit = parseInt(req.query.limit) || 10; // 기본값은 10
   const connection = await mysql.createConnection(dbConfig);
   const [rows] = await connection.execute(`
     SELECT * FROM tasks
     ORDER BY
       CASE WHEN status = 'Incomplete' THEN 1 ELSE 2 END, createdAt DESC
-  `);
+    LIMIT ?
+  `, [limit]);
+
   // KST로 변환
   const tasks = rows.map(task => {
     const dueDate = new Date(task.dueDate);
@@ -227,6 +230,30 @@ app.listen(PORT, () => {
   <title>Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <style>
+    .form-inline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .form-inline .form-control {
+      width: auto;
+    }
+    .due-date-input {
+      max-width: 250px; /* Due Date 필드 너비 제한 */
+    }
+    .filter-date-input {
+      max-width: 200px; /* Filter by Date 필드 너비 제한 */
+    }
+    .task-box {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      margin-bottom: 20px;
+    }
+  </style>
 </head>
 <body>
   <div class="container mt-5">
@@ -234,14 +261,10 @@ app.listen(PORT, () => {
     <a href="/logout" class="btn btn-secondary mb-3">Logout</a>
 
     <h2>Create Task</h2>
-    <form id="task-form">
+    <form id="task-form" class="form-inline mb-4">
       <div class="mb-3">
         <label for="title" class="form-label">Title</label>
         <input type="text" class="form-control" id="title" required>
-      </div>
-      <div class="mb-3">
-        <label for="content" class="form-label">Content</label>
-        <textarea class="form-control" id="content" rows="3" required></textarea>
       </div>
       <div class="mb-3">
         <label for="assignedTo" class="form-label">Assign To</label>
@@ -249,36 +272,53 @@ app.listen(PORT, () => {
       </div>
       <div class="mb-3">
         <label for="dueDate" class="form-label">Due Date</label>
-        <input type="datetime-local" class="form-control" id="dueDate" required>
+        <input type="datetime-local" class="form-control due-date-input" id="dueDate" required>
       </div>
       <button type="submit" class="btn btn-primary">Create Task</button>
     </form>
+      <div class="mb-3">
+        <label for="content" class="form-label">Content</label>
+        <textarea class="form-control" id="content" rows="3" required></textarea>
+      </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Task List</h2>
+      <div>
+        <label for="taskLimit" class="form-label me-2">Show:</label>
+        <select id="taskLimit" class="form-select d-inline-block w-auto">
+          <option value="10">10</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+  </div>
+    <form id="task-form" class="form-inline mb-4">
     <div class="mb-3">
       <label for="filterDate" class="form-label">Filter by Date</label>
-      <input type="date" class="form-control" id="filterDate">
+      <input type="date" class="form-control filter-date-input" id="filterDate">
     </div>
     <div class="mb-3">
       <label for="filterUser" class="form-label">Filter by User</label>
       <input type="text" class="form-control" id="filterUser" placeholder="Enter username">
     </div>
     <button onclick="filterTasks()" class="btn btn-primary">Filter</button>
-
-    <h2>Task List</h2>
-    <table class="table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Title</th>
-          <th>Content</th>
-          <th>Assigned To</th>
-          <th>Due Date</th>
-          <th>Created By</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="task-list"></tbody>
-    </table>
-  </div>
+    </form>
+    <div class="task-box">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Content</th>
+            <th>Assigned To</th>
+            <th>Due Date</th>
+            <th>Created By</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="task-list"></tbody>
+      </table>
+    </div>
 
   <!-- JavaScript 코드 -->
   <script>
@@ -308,31 +348,41 @@ app.listen(PORT, () => {
           option.textContent = user;
           assignToSelect.appendChild(option);
         });
-    });
+      });
 
-    // Load tasks into the table
-    fetch('/tasks')
-      .then(res => res.json())
-      .then(tasks => {
-        const taskList = document.getElementById('task-list');
-        tasks.forEach(task => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${task.id}</td>
-            <td>${task.title}</td>
-            <td>${task.content.replace(/\n/g, '<br>')}</td>
-            <td>${task.assignedTo}</td>
-            <td>${task.dueDate}</td>
-            <td>${task.createdBy}</td>
-            <td>
-              ${task.status === 'Complete'
-                ? `<span class="text-success">Complete</span>`
-                : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">Mark Complete</button>`}
-            </td>
-          `;
-          taskList.appendChild(row);
-       });
-    });
+    // Task List 불러오기 함수
+    document.getElementById('taskLimit').addEventListener('change', loadTasks);
+    function loadTasks() {
+      const limit = document.getElementById('taskLimit').value;
+      fetch(`/tasks?limit=${limit}`)
+        .then(res => res.json())
+        .then(tasks => {
+          const taskList = document.getElementById('task-list');
+          taskList.innerHTML = ''; // 기존 목록 지우기
+
+          tasks.forEach(task => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${task.id}</td>
+              <td>${task.title}</td>
+              <td>${task.content.replace(/\n/g, '<br>')}</td>
+              <td>${task.assignedTo}</td>
+              <td>${task.dueDate}</td>
+              <td>${task.createdBy}</td>
+              <td>${task.status}</td>
+              <td>
+                ${task.status === 'Complete'
+                  ? `<span class="text-success">Complete</span>`
+                  : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">Mark Complete</button>`}
+              </td>
+            `;
+            taskList.appendChild(row);
+          });
+        });
+    }
+
+    // 페이지 로드 시 기본 10개 로드
+    loadTasks();
 
     // Create a new task (중복 이벤트 리스너 방지)
     const taskForm = document.getElementById('task-form');
@@ -438,6 +488,9 @@ app.listen(PORT, () => {
       </div>
       <button type="submit" class="btn btn-primary">Login</button>
     </form>
+    <p class="mt-3">
+      Don't have an account? <a href="/register" class="btn btn-outline-secondary">Register here</a>
+    </p>
   </div>
 </body>
 </html>
@@ -464,6 +517,10 @@ app.listen(PORT, () => {
       <div class="mb-3">
         <label for="password" class="form-label">Password</label>
         <input type="password" class="form-control" id="password" name="password" required>
+      </div>
+      <div class="mb-3">
+        <label for="name" class="form-label">Name</label>
+        <input type="text" class="form-control" id="name" name="name" required>
       </div>
       <button type="submit" class="btn btn-primary">Register</button>
     </form>
@@ -495,4 +552,5 @@ CREATE TABLE users (
 
 ALTER TABLE users ADD COLUMN role ENUM('admin', 'user') DEFAULT 'user';
 
+ALTER TABLE users ADD COLUMN name VARCHAR(100) NOT NULL;
 ```
