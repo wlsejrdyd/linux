@@ -36,7 +36,7 @@ const PORT = 3000;
 
 // DB 연결 설정
 const dbConfig = {
-  host: 'localhost',
+  host: '10.104.1.1',
   user: 'root',
   password: 'qew123!@#',
   database: 'taskdb'
@@ -61,19 +61,23 @@ app.get('/register', (req, res) => {
 
 // 사용자 회원가입 처리
 app.post('/register', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, name } = req.body;
   const connection = await mysql.createConnection(dbConfig);
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10); // 비밀번호 해싱
+    const hashedPassword = await bcrypt.hash(password, 10);
     await connection.execute(
-      'INSERT INTO users (username, password) VALUES (?, ?)',
-      [username, hashedPassword]
+      'INSERT INTO users (username, password, name) VALUES (?, ?, ?)',
+      [username, hashedPassword, name]
     );
-    res.redirect('/login'); // 회원가입 후 로그인 페이지로 리디렉트
+    res.redirect('/login');
   } catch (error) {
-    console.error('Error registering user:', error);
-    res.status(500).send('Failed to register user');
+    if (error.code === 'ER_DUP_ENTRY') {
+      res.status(400).send('Username already exists. Please choose a different username.');
+    } else {
+      console.error('Error registering user:', error);
+      res.status(500).send('Failed to register user');
+    }
   } finally {
     await connection.end();
   }
@@ -511,7 +515,7 @@ app.listen(PORT, () => {
     <h1>Register</h1>
     <form action="/register" method="POST">
       <div class="mb-3">
-        <label for="username" class="form-label">Username</label>
+        <label for="username" class="form-label">login ID</label>
         <input type="text" class="form-control" id="username" name="username" required>
       </div>
       <div class="mb-3">
@@ -547,10 +551,10 @@ CREATE TABLE tasks (
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL
+  password VARCHAR(255) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  role ENUM('admin', 'user') DEFAULT 'user'
 )DEFAULT CHARSET=UTF8;
 
 ALTER TABLE users ADD COLUMN role ENUM('admin', 'user') DEFAULT 'user';
-
-ALTER TABLE users ADD COLUMN name VARCHAR(100) NOT NULL;
 ```
