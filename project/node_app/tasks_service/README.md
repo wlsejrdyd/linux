@@ -232,7 +232,7 @@ app.listen(PORT, () => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <style>
     .form-inline {
@@ -476,7 +476,7 @@ app.listen(PORT, () => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
 </head>
 <body>
   <div class="container mt-5">
@@ -508,7 +508,7 @@ app.listen(PORT, () => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Register</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
 </head>
 <body>
   <div class="container mt-5">
@@ -557,4 +557,27 @@ CREATE TABLE users (
 )DEFAULT CHARSET=UTF8;
 
 ALTER TABLE users ADD COLUMN role ENUM('admin', 'user') DEFAULT 'user';
+```
+
+## Docker
+docker save -o task.tar task:1.0
+docker load -i task.tar
+
+### Dockerfile
+```
+FROM node:16
+
+# 작업 디렉토리 설정
+WORKDIR /app/node02
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+ENV TZ Asia/Seoul
+
+CMD ["node", "index.js"]
 ```
