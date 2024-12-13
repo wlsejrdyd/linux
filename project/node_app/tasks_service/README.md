@@ -239,7 +239,7 @@ app.listen(PORT, () => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard</title>
+  <title>개발중</title>
   <link rel="stylesheet" href="/css/bootstrap.min.css">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <style>
@@ -272,49 +272,55 @@ app.listen(PORT, () => {
     <h1>Dashboard</h1>
     <a href="/logout" class="btn btn-secondary mb-3">Logout</a>
 
-    <h2>Create Task</h2>
+    <h2>작업 생성</h2>
     <form id="task-form" class="form-inline mb-4">
       <div class="mb-3">
-        <label for="title" class="form-label">Title</label>
+        <label for="title" class="form-label">제목</label>
         <input type="text" class="form-control" id="title" required>
       </div>
       <div class="mb-3">
-        <label for="assignedTo" class="form-label">Assign To</label>
+        <label for="assignedTo" class="form-label">담당자 지정</label>
         <select class="form-control" id="assignedTo" required></select>
       </div>
       <div class="mb-3">
-        <label for="dueDate" class="form-label">Due Date</label>
+        <label for="dueDate" class="form-label">완료 요청일</label>
         <input type="datetime-local" class="form-control due-date-input" id="dueDate" required>
       </div>
-      <button type="submit" class="btn btn-primary">Create Task</button>
+      <button type="submit" class="btn btn-primary">신청</button>
     </form>
       <div class="mb-3">
-        <label for="content" class="form-label">Content</label>
+        <label for="content" class="form-label">내용</label>
         <textarea class="form-control" id="content" rows="3" required></textarea>
       </div>
 
-    <h2>Filter Tasks</h2>
-    <form id="filter-form" class="form-inline mb-4">
-      <div class="mb-3">
-        <label for="filterKeyword" class="form-label">Filter by Keyword</label>
-        <input type="text" class="form-control" id="filterKeyword" placeholder="Enter keyword">
+    <h2>작업 목록</h2>
+      <div>
+        <label for="taskLimit" class="form-label me-2">Show:</label>
+        <select id="taskLimit" class="form-select d-inline-block w-auto">
+          <option value="10">10</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
       </div>
-      <button type="button" onclick="filterTasks()" class="btn btn-primary">Filter</button>
-    </form>
-
-    <h2>Task List</h2>
+      <form id="filter-form" class="form-inline mb-4">
+        <div class="mb-3">
+          <label for="filterKeyword" class="form-label">제목/내용 검색</label>
+          <input type="text" class="form-control" id="filterKeyword" placeholder="Enter keyword">
+        </div>
+        <button type="button" onclick="filterTasks()" class="btn btn-primary">검색</button>
+      </form>
     <div class="task-box">
       <table class="table">
         <thead>
           <tr>
             <th>ID</th>
-            <th>Title</th>
-            <th>Content</th>
-            <th>Assigned To</th>
-            <th>Due Date</th>
-            <th>Created By</th>
-            <th>Action</th>
-            <th>Completed At</th>
+            <th>제목</th>
+            <th>내용</th>
+            <th>담당자</th>
+            <th>완료 요청일</th>
+            <th>작성자</th>
+            <th>상태</th>
+            <th>완료 날짜</th>
           </tr>
         </thead>
         <tbody id="task-list"></tbody>
@@ -360,7 +366,7 @@ app.listen(PORT, () => {
           <td>
             ${task.status === 'Complete'
               ? `<span class="text-success">Complete</span>`
-              : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">Mark Complete</button>`}
+              : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
           </td>
           <td>${task.completedAt ? task.completedAt : '-'}</td>
         `;
