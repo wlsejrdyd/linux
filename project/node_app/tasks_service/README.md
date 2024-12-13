@@ -349,6 +349,37 @@ app.listen(PORT, () => {
         .then(tasks => renderTaskList(tasks));
     }
 
+    // Task List limit
+    document.getElementById('taskLimit').addEventListener('change', loadTasks);
+    function loadTasks() {
+      const limit = document.getElementById('taskLimit').value;
+      fetch(`/tasks?limit=${limit}`)
+        .then(res => res.json())
+        .then(tasks => {
+          const taskList = document.getElementById('task-list');
+          taskList.innerHTML = ''; // 기존 목록 지우기
+
+          tasks.forEach(task => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${task.id}</td>
+              <td>${task.title}</td>
+              <td>${task.content.replace(/\n/g, '<br>')}</td>
+              <td>${task.assignedTo}</td>
+              <td>${task.dueDate}</td>
+              <td>${task.createdBy}</td>
+              <td>
+                ${task.status === 'Complete'
+                  ? `<span class="text-success">Complete</span>`
+                  : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
+              </td>
+              <td>${task.completedAt ? task.completedAt : '-'}</td>
+            `;
+            taskList.appendChild(row);
+          });
+        });
+    }
+
     // Render Task List
     function renderTaskList(tasks) {
       const taskList = document.getElementById('task-list');
