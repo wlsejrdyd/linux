@@ -37,8 +37,9 @@ const PORT = 3000;
 // DB 연결 설정
 const dbConfig = {
   host: '10.104.1.1',
-  user: 'root',
-  password: 'qew123!@#',
+  user: 'task',
+  port: '9981',
+  password: 'qwe123QWE!@#',
   database: 'taskdb'
 };
 
@@ -212,6 +213,13 @@ app.delete('/tasks/:id', async (req, res) => {
   }
 });
 
+app.get('/tasks/latest', async (req, res) => {
+  const connection = await mysql.createConnection(dbConfig);
+  const [rows] = await connection.execute('SELECT MAX(createdAt) as latest FROM tasks');
+  res.json({ latest: rows[0].latest });
+  await connection.end();
+});
+
 // 로그아웃
 app.get('/logout', (req, res) => {
   req.session.destroy();
@@ -245,10 +253,10 @@ app.listen(PORT, () => {
       width: auto;
     }
     .due-date-input {
-      max-width: 250px; /* Due Date 필드 너비 제한 */
+      max-width: 250px;
     }
     .filter-date-input {
-      max-width: 200px; /* Filter by Date 필드 너비 제한 */
+      max-width: 200px;
     }
     .task-box {
       border: 1px solid #ccc;
@@ -285,28 +293,16 @@ app.listen(PORT, () => {
         <textarea class="form-control" id="content" rows="3" required></textarea>
       </div>
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Task List</h2>
-      <div>
-        <label for="taskLimit" class="form-label me-2">Show:</label>
-        <select id="taskLimit" class="form-select d-inline-block w-auto">
-          <option value="10">10</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
+    <h2>Filter Tasks</h2>
+    <form id="filter-form" class="form-inline mb-4">
+      <div class="mb-3">
+        <label for="filterKeyword" class="form-label">Filter by Keyword</label>
+        <input type="text" class="form-control" id="filterKeyword" placeholder="Enter keyword">
       </div>
-  </div>
-    <form id="task-form" class="form-inline mb-4">
-    <div class="mb-3">
-      <label for="filterDate" class="form-label">Filter by Date</label>
-      <input type="date" class="form-control filter-date-input" id="filterDate">
-    </div>
-    <div class="mb-3">
-      <label for="filterUser" class="form-label">Filter by User</label>
-      <input type="text" class="form-control" id="filterUser" placeholder="Enter username">
-    </div>
-    <button onclick="filterTasks()" class="btn btn-primary">Filter</button>
+      <button type="button" onclick="filterTasks()" class="btn btn-primary">Filter</button>
     </form>
+
+    <h2>Task List</h2>
     <div class="task-box">
       <table class="table">
         <thead>
@@ -317,30 +313,16 @@ app.listen(PORT, () => {
             <th>Assigned To</th>
             <th>Due Date</th>
             <th>Created By</th>
-            <th>Status</th>
+            <th>Action</th>
+            <th>Completed At</th>
           </tr>
         </thead>
         <tbody id="task-list"></tbody>
       </table>
     </div>
+  </div>
 
-  <!-- JavaScript 코드 -->
   <script>
-    // 알림 권한 요청
-    if (Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-
-    // 알림 함수
-    function showNotification(title) {
-      if (Notification.permission === 'granted') {
-        new Notification('New Task Created', {
-          body: `Task: ${title} has been created.`,
-          icon: '/icon.png' // 알림 아이콘 (옵션)
-        });
-      }
-    }
-
     // Load users into the "Assign To" dropdown
     fetch('/users')
       .then(res => res.json())
@@ -354,47 +336,42 @@ app.listen(PORT, () => {
         });
       });
 
-    // Task List 불러오기 함수
-    document.getElementById('taskLimit').addEventListener('change', loadTasks);
+    // Load Task List
     function loadTasks() {
-      const limit = document.getElementById('taskLimit').value;
-      fetch(`/tasks?limit=${limit}`)
+      fetch('/tasks')
         .then(res => res.json())
-        .then(tasks => {
-          const taskList = document.getElementById('task-list');
-          taskList.innerHTML = ''; // 기존 목록 지우기
-
-          tasks.forEach(task => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-              <td>${task.id}</td>
-              <td>${task.title}</td>
-              <td>${task.content.replace(/\n/g, '<br>')}</td>
-              <td>${task.assignedTo}</td>
-              <td>${task.dueDate}</td>
-              <td>${task.createdBy}</td>
-              <td>${task.status}</td>
-              <td>
-                ${task.status === 'Complete'
-                  ? `<span class="text-success">Complete</span>`
-                  : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">Mark Complete</button>`}
-              </td>
-            `;
-            taskList.appendChild(row);
-          });
-        });
+        .then(tasks => renderTaskList(tasks));
     }
 
-    // 페이지 로드 시 기본 10개 로드
-    loadTasks();
+    // Render Task List
+    function renderTaskList(tasks) {
+      const taskList = document.getElementById('task-list');
+      taskList.innerHTML = '';
 
-    // Create a new task (중복 이벤트 리스너 방지)
-    const taskForm = document.getElementById('task-form');
-    taskForm.addEventListener('submit', handleTaskSubmit);
+      tasks.forEach(task => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${task.id}</td>
+          <td>${task.title}</td>
+          <td>${task.content.replace(/\n/g, '<br>')}</td>
+          <td>${task.assignedTo}</td>
+          <td>${task.dueDate}</td>
+          <td>${task.createdBy}</td>
+          <td>
+            ${task.status === 'Complete'
+              ? `<span class="text-success">Complete</span>`
+              : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">Mark Complete</button>`}
+          </td>
+          <td>${task.completedAt ? task.completedAt : '-'}</td>
+        `;
+        taskList.appendChild(row);
+      });
+    }
 
+    // Create Task
+    document.getElementById('task-form').addEventListener('submit', handleTaskSubmit);
     function handleTaskSubmit(e) {
       e.preventDefault();
-
       const task = {
         title: document.getElementById('title').value,
         content: document.getElementById('content').value,
@@ -407,61 +384,50 @@ app.listen(PORT, () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(task)
       })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Failed to create task: ${response.statusText}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('Task created:', data);
-          showNotification(task.title); // 알림 호출
-          location.reload(); // 성공 시 페이지 새로고침
-        })
-        .catch(error => console.error('Error creating task:', error));
+      .then(res => res.json())
+      .then(() => loadTasks());
     }
 
-    // Complete a task
+    // Complete Task
     function completeTask(id) {
       fetch(`/tasks/${id}`, { method: 'PUT' })
-        .then(res => res.json())
-        .then(() => location.reload());
+        .then(() => loadTasks());
     }
 
+    // Filter Tasks by Keyword
     function filterTasks() {
-      const filterDate = document.getElementById('filterDate').value;
-      const filterUser = document.getElementById('filterUser').value;
+      const filterKeyword = document.getElementById('filterKeyword').value.trim().toLowerCase();
 
       fetch('/tasks')
         .then(res => res.json())
         .then(tasks => {
-          let filteredTasks = tasks;
-
-          if (filterDate) {
-            filteredTasks = filteredTasks.filter(task => task.dueDate.startsWith(filterDate));
-          }
-
-          if (filterUser) {
-            filteredTasks = filteredTasks.filter(task => task.assignedTo === filterUser);
-          }
-
-          const taskList = document.getElementById('task-list');
-          taskList.innerHTML = ''; // 기존 목록 지우기
-
-          filteredTasks.forEach(task => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-              <td>${task.id}</td>
-              <td>${task.title}</td>
-              <td>${task.content.replace(/\n/g, '<br>')}</td>
-              <td>${task.assignedTo}</td>
-              <td>${task.dueDate}</td>
-              <td>${task.createdBy}</td>
-              <td>${task.status}</td>
-            `;
-            taskList.appendChild(row);
-          });
+          const filteredTasks = tasks.filter(task =>
+            task.title.toLowerCase().includes(filterKeyword) ||
+            task.content.toLowerCase().includes(filterKeyword)
+          );
+          renderTaskList(filteredTasks);
         });
+    }
+
+    // Initial Load
+    loadTasks();
+
+    let latestTaskTime = null;
+    // 5초마다 새로운 Task가 있는지 확인
+    setInterval(checkForNewTasks, 5000);
+
+    function checkForNewTasks() {
+      fetch('/tasks/latest')
+        .then(res => res.json())
+        .then(data => {
+          if (!latestTaskTime) {
+            latestTaskTime = data.latest;
+          } else if (data.latest !== latestTaskTime) {
+            latestTaskTime = data.latest;
+            loadTasks(); // 새로운 Task가 있으면 Task List 새로고침
+          }
+        })
+        .catch(err => console.error('Error checking for new tasks:', err));
     }
   </script>
 </body>
