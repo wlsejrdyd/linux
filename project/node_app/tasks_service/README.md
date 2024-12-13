@@ -152,8 +152,6 @@ app.get('/tasks', async (req, res) => {
 });
 
 app.post('/tasks', async (req, res) => {
-  console.log('Request Body:', req.body); // 요청 데이터 출력
-
   const { title, content, assignedTo, dueDate } = req.body;
 
   if (!req.session.user) {
@@ -178,6 +176,7 @@ app.post('/tasks', async (req, res) => {
 // 작업 완료 처리 API
 app.put('/tasks/:id', async (req, res) => {
   const { id } = req.params;
+  const completedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
   if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
 
   const connection = await mysql.createConnection(dbConfig);
@@ -192,25 +191,10 @@ app.put('/tasks/:id', async (req, res) => {
     return res.status(403).json({ error: 'Not authorized to complete this task' });
   }
 
-  await connection.execute('UPDATE tasks SET status = "complete" WHERE id = ?', [id]);
+  //await connection.execute('UPDATE tasks SET status = "complete" WHERE id = ?', [id]);
+  await connection.execute('UPDATE tasks SET status = "Complete", completedAt = ? WHERE id = ?', [completedAt, id]);
   res.json({ success: true });
   await connection.end();
-});
-
-// 작업 삭제 API (관리자만 가능)
-app.delete('/tasks/:id', async (req, res) => {
-  const { id } = req.params;
-  const connection = await mysql.createConnection(dbConfig);
-
-  try {
-    await connection.execute('DELETE FROM tasks WHERE id = ?', [id]);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting task:', error);
-    res.status(500).json({ error: 'Failed to delete task' });
-  } finally {
-    await connection.end();
-  }
 });
 
 app.get('/tasks/latest', async (req, res) => {
@@ -546,6 +530,7 @@ CREATE TABLE tasks (
   content TEXT NOT NULL,
   assignedTo VARCHAR(50) NOT NULL,
   dueDate DATETIME NOT NULL,
+  completedAt DATETIME NOT NULL,
   createdBy VARCHAR(50) NOT NULL,
   status ENUM('Incomplete', 'Complete') DEFAULT 'Incomplete',
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -580,7 +565,7 @@ COPY . .
 
 EXPOSE 3000
 
-ENV TZ Asia/Seoul
+ENV TZ=Asia/Seoul
 
 CMD ["node", "index.js"]
 ```
