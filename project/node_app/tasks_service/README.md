@@ -142,14 +142,27 @@ app.get('/tasks', async (req, res) => {
 
   // KST로 변환
   const tasks = rows.map(task => {
+    // dueDate KST 변환
     const dueDate = new Date(task.dueDate);
-    const kstDate = new Date(dueDate.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
-    task.dueDate = kstDate.toISOString().replace('T', ' ').substring(0, 19); // YYYY-MM-DD HH:MM:SS 형식
+    const kstDueDate = new Date(dueDate.getTime() + (9 * 60 * 60 * 1000));
+    task.dueDate = kstDueDate.toISOString().replace('T', ' ').substring(0, 16); // YYYY-MM-DD HH:MM 형식
+
+    // completedAt KST 변환 (완료된 경우만)
+    if (task.completedAt) {
+      const completedAt = new Date(task.completedAt);
+      const kstCompletedAt = new Date(completedAt.getTime() + (9 * 60 * 60 * 1000));
+      task.completedAt = kstCompletedAt.toISOString().replace('T', ' ').substring(0, 16); // YYYY-MM-DD HH:MM 형식
+    } else {
+      task.completedAt = '-'; // 완료되지 않은 경우 "-"
+    }
+
     return task;
   });
-  res.json(rows);
+
+  res.json(tasks);
   await connection.end();
 });
+
 
 app.post('/tasks', async (req, res) => {
   const { title, content, assignedTo, dueDate } = req.body;
@@ -161,8 +174,8 @@ app.post('/tasks', async (req, res) => {
   const connection = await mysql.createConnection(dbConfig);
   try {
     await connection.execute(`
-      INSERT INTO tasks (title, content, assignedTo, dueDate, createdBy)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO tasks (title, content, assignedTo, dueDate, createdBy, completedAt)
+      VALUES (?, ?, ?, ?, ?, NULL)
     `, [title, content, assignedTo, dueDate, req.session.user.username]);
     res.json({ success: true });
   } catch (error) {
@@ -173,35 +186,173 @@ app.post('/tasks', async (req, res) => {
   }
 });
 
-// 작업 완료 처리 API
-app.put('/tasks/:id', async (req, res) => {
-  const { id } = req.params;
-  const completedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-
-  const connection = await mysql.createConnection(dbConfig);
-  const [taskRows] = await connection.execute('SELECT * FROM tasks WHERE id = ?', [id]);
-
-  if (taskRows.length === 0) {
-    return res.status(404).json({ error: 'Task not found' });
-  }
-
-  const task = taskRows[0];
-  if (task.assignedTo !== req.session.user.username) {
-    return res.status(403).json({ error: 'Not authorized to complete this task' });
-  }
-
-  //await connection.execute('UPDATE tasks SET status = "complete" WHERE id = ?', [id]);
-  await connection.execute('UPDATE tasks SET status = "Complete", completedAt = ? WHERE id = ?', [completedAt, id]);
-  res.json({ success: true });
-  await connection.end();
-});
-
 app.get('/tasks/latest', async (req, res) => {
   const connection = await mysql.createConnection(dbConfig);
   const [rows] = await connection.execute('SELECT MAX(createdAt) as latest FROM tasks');
   res.json({ latest: rows[0].latest });
   await connection.end();
+});
+
+// 작업 완료 처리 API
+app.put('/tasks/:id', async (req, res) => {
+  const { id } = req.params;
+
+  // KST로 현재 시간 설정
+  const now = new Date();
+  const kstCompletedAt = new Date(now.getTime() + (9 * 60 * 60 * 1000))
+    .toISOString()
+    .replace('T', ' ')
+    .substring(0, 19); // YYYY-MM-DD HH:MM:SS 형식
+
+  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    const [taskRows] = await connection.execute('SELECT * FROM tasks WHERE id = ?', [id]);
+    if (taskRows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const task = taskRows[0];
+    if (task.assignedTo !== req.session.user.username) {
+      return res.status(403).json({ error: 'Not authorized to complete this task' });
+    }
+
+    // Task 상태를 Complete로 업데이트하고 completedAt 시간 저장
+    await connection.execute(
+      'UPDATE tasks SET status = "Complete", completedAt = ? WHERE id = ?',
+      [kstCompletedAt, id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error completing task:', error);
+    res.status(500).json({ error: 'Failed to complete task' });
+  } finally {
+    await connection.end();
+  }
+});
+
+
+// task 수정
+app.put('/tasks/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, content } = req.body;
+
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    const [taskRows] = await connection.execute('SELECT * FROM tasks WHERE id = ?', [id]);
+    if (taskRows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const task = taskRows[0];
+    if (task.createdBy !== req.session.user.username && task.assignedTo !== req.session.user.username) {
+      return res.status(403).json({ error: 'Unauthorized to edit this task' });
+    }
+
+    await connection.execute(
+      'UPDATE tasks SET title = ?, content = ? WHERE id = ?',
+      [title, content, id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(500).json({ error: 'Failed to update task' });
+  } finally {
+    await connection.end();
+  }
+});
+
+// task 삭제
+app.delete('/tasks/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    const [taskRows] = await connection.execute('SELECT * FROM tasks WHERE id = ?', [id]);
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Task not found' });
+
+    const task = taskRows[0];
+    if (task.createdBy !== req.session.user.username && task.assignedTo !== req.session.user.username) {
+      return res.status(403).json({ error: 'Unauthorized to delete this task' });
+    }
+
+    await connection.execute('DELETE FROM tasks WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).json({ error: 'Failed to delete task' });
+  } finally {
+    await connection.end();
+  }
+});
+
+// task 상세 조회
+app.get('/tasks/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    const [taskRows] = await connection.execute('SELECT * FROM tasks WHERE id = ?', [id]);
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Task not found' });
+
+    res.json(taskRows[0]);
+  } catch (error) {
+    console.error('Error fetching task:', error);
+    res.status(500).json({ error: 'Failed to fetch task' });
+  } finally {
+    await connection.end();
+  }
+});
+
+// 프로젝트 게시판 페이지 라우트
+app.get('/projects', (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  res.sendFile(path.join(__dirname, 'public', 'projects.html'));
+});
+
+// 비밀번호 변경
+app.post('/change-password', async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    const [rows] = await connection.execute('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
+    if (!await bcrypt.compare(currentPassword, rows[0].password)) {
+      return res.status(400).send('Current password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await connection.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.session.user.id]);
+    res.send('Password changed successfully');
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).send('Failed to change password');
+  } finally {
+    await connection.end();
+  }
+});
+
+// 계정 탈퇴
+app.delete('/delete-account', async (req, res) => {
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    await connection.execute('DELETE FROM users WHERE id = ?', [req.session.user.id]);
+    req.session.destroy();
+    res.send('Account deleted successfully');
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).send('Failed to delete account');
+  } finally {
+    await connection.end();
+  }
 });
 
 // 로그아웃
@@ -251,10 +402,56 @@ app.listen(PORT, () => {
     }
   </style>
 </head>
+<!-- Bootstrap JavaScript 및 Popper.js 추가 -->
+<script src="/js/popper.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
 <body>
   <div class="container mt-5">
-    <h1>Dashboard</h1>
     <a href="/logout" class="btn btn-secondary mb-3">Logout</a>
+    <button class="btn btn-secondary mb-3" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</button>
+    <button class="btn btn-secondary mb-3" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 삭제</button>
+    <!-- 비밀번호 변경 모달 -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="changePasswordModalLabel">비밀번호 변경</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="changePasswordForm">
+              <div class="mb-3">
+                <label for="currentPassword" class="form-label">현재 비밀번호</label>
+                <input type="password" class="form-control" id="currentPassword" required>
+              </div>
+              <div class="mb-3">
+                <label for="newPassword" class="form-label">새로운 비밀변호</label>
+                <input type="password" class="form-control" id="newPassword" required>
+              </div>
+              <button type="submit" class="btn btn-warning">변경</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 계정 탈퇴 모달 -->
+    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteAccountModalLabel">Delete Account</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to delete your account? This action cannot be undone.</p>
+            <button id="confirmDeleteAccount" class="btn btn-danger">Delete Account</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h1>작업 보드</h1>
+    <a href="/projects" class="btn btn-secondary mb-3">프로젝트 보드</a>
 
     <h2>작업 생성</h2>
     <form id="task-form" class="form-inline mb-4">
@@ -304,11 +501,36 @@ app.listen(PORT, () => {
             <th>완료 요청일</th>
             <th>작성자</th>
             <th>상태</th>
-            <th>완료 날짜</th>
+            <th>완료일</th>
           </tr>
         </thead>
         <tbody id="task-list"></tbody>
       </table>
+    </div>
+  </div>
+  <!-- Task 수정 모달 -->
+  <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editTaskModalLabel">Edit Task</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editTaskForm">
+            <input type="hidden" id="editTaskId">
+            <div class="mb-3">
+              <label for="editTitle" class="form-label">제목</label>
+              <input type="text" class="form-control" id="editTitle" required>
+            </div>
+            <div class="mb-3">
+              <label for="editContent" class="form-label">내용</label>
+              <textarea class="form-control" id="editContent" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-warning">저장</button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -356,8 +578,10 @@ app.listen(PORT, () => {
                 ${task.status === 'Complete'
                   ? `<span class="text-success">Complete</span>`
                   : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
+                  <button onclick="editTask(${task.id})" class="btn btn-warning btn-sm me-1">수정</button>
+                  <button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button>
               </td>
-              <td>${task.completedAt ? task.completedAt : '-'}</td>
+              <td>${task.completedAt}</td>
             `;
             taskList.appendChild(row);
           });
@@ -382,8 +606,10 @@ app.listen(PORT, () => {
             ${task.status === 'Complete'
               ? `<span class="text-success">Complete</span>`
               : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
+              <button onclick="editTask(${task.id})" class="btn btn-warning btn-sm me-1">수정</button>
+              <button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button>
           </td>
-          <td>${task.completedAt ? task.completedAt : '-'}</td>
+          <td>${task.completedAt}</td>
         `;
         taskList.appendChild(row);
       });
@@ -449,6 +675,107 @@ app.listen(PORT, () => {
           }
         })
         .catch(err => console.error('Error checking for new tasks:', err));
+    }
+
+    // 비밀번호 변경 핸들러
+    document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+
+      fetch('/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword })
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('Password change failed');
+          return res.text();
+        })
+        .then(message => {
+          alert(message);
+          document.getElementById('changePasswordForm').reset();
+          bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+        })
+        .catch(err => alert(err.message));
+    });
+
+    // 계정 탈퇴 핸들러
+    document.getElementById('confirmDeleteAccount').addEventListener('click', () => {
+      fetch('/delete-account', { method: 'DELETE' })
+        .then(res => {
+          if (!res.ok) throw new Error('Account deletion failed');
+          return res.text();
+        })
+        .then(message => {
+          alert(message);
+          window.location.href = '/login';
+        })
+        .catch(err => alert(err.message));
+    });
+
+    // Edit Task 함수
+    function editTask(id) {
+      fetch(`/tasks/${id}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch task data');
+          return res.json();
+        })
+        .then(task => {
+          document.getElementById('editTaskId').value = task.id;
+          document.getElementById('editTitle').value = task.title;
+          document.getElementById('editContent').value = task.content;
+          new bootstrap.Modal(document.getElementById('editTaskModal')).show();
+        })
+        .catch(err => {
+          console.error('Error fetching task:', err);
+          alert('Error fetching task data');
+        });
+    }
+
+
+    // Task 수정 핸들러
+    document.getElementById('editTaskForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const id = document.getElementById('editTaskId').value;
+      const updatedTask = {
+        title: document.getElementById('editTitle').value,
+        content: document.getElementById('editContent').value
+      };
+
+      fetch(`/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedTask)
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to update task');
+          return res.json();
+        })
+        .then(() => {
+          alert('Task updated successfully');
+          loadTasks();
+          bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide();
+        })
+        .catch(err => {
+          console.error('Error updating task:', err);
+          alert(err.message);
+        });
+    });
+
+    // Delete Task 함수
+    function deleteTask(id) {
+      if (!confirm('Are you sure you want to delete this task?')) return;
+
+      fetch(`/tasks/${id}`, { method: 'DELETE' })
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to delete task');
+          return res.json();
+        })
+        .then(() => loadTasks())
+        .catch(err => alert(err.message));
     }
   </script>
 </body>
@@ -530,10 +857,10 @@ CREATE TABLE tasks (
   content TEXT NOT NULL,
   assignedTo VARCHAR(50) NOT NULL,
   dueDate DATETIME NOT NULL,
-  completedAt DATETIME NOT NULL,
   createdBy VARCHAR(50) NOT NULL,
   status ENUM('Incomplete', 'Complete') DEFAULT 'Incomplete',
-  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completedAt DATETIME DEFAULT NULL
 )DEFAULT CHARSET=UTF8;
 
 CREATE TABLE users (
@@ -544,12 +871,22 @@ CREATE TABLE users (
   role ENUM('admin', 'user') DEFAULT 'user'
 )DEFAULT CHARSET=UTF8;
 
-ALTER TABLE users ADD COLUMN role ENUM('admin', 'user') DEFAULT 'user';
+# 테이블 컬러 추가 참고용 ALTER TABLE users ADD COLUMN role ENUM('admin', 'user') DEFAULT 'user';
+
+# 테이블 수정 참고용 ALTER TABLE tasks MODIFY completedAt DATETIME DEFAULT NULL;
 ```
 
 ## Docker
+```
 docker save -o task.tar task:1.0
 docker load -i task.tar
+```
+
+* image 수정 후 commit 하면 /bin/bash 가 CMD 로 박힘, 커밋 한번 더 해주면 해결,
+```
+docker commit --change='CMD ["node", "index.js"]' <container> <image>
+```
+* 참고로 확인하는 방법은 docker inspect <image> 명령어로 CMD 라인을 보면 됨.
 
 ### Dockerfile
 ```
