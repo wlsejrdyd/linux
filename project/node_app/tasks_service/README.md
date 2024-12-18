@@ -163,7 +163,6 @@ app.get('/tasks', async (req, res) => {
   await connection.end();
 });
 
-
 app.post('/tasks', async (req, res) => {
   const { title, content, assignedTo, dueDate } = req.body;
 
@@ -234,39 +233,6 @@ app.put('/tasks/:id', async (req, res) => {
   }
 });
 
-
-// task 수정
-app.put('/tasks/:id', async (req, res) => {
-  const { id } = req.params;
-  const { title, content } = req.body;
-
-  const connection = await mysql.createConnection(dbConfig);
-
-  try {
-    const [taskRows] = await connection.execute('SELECT * FROM tasks WHERE id = ?', [id]);
-    if (taskRows.length === 0) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-
-    const task = taskRows[0];
-    if (task.createdBy !== req.session.user.username && task.assignedTo !== req.session.user.username) {
-      return res.status(403).json({ error: 'Unauthorized to edit this task' });
-    }
-
-    await connection.execute(
-      'UPDATE tasks SET title = ?, content = ? WHERE id = ?',
-      [title, content, id]
-    );
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating task:', error);
-    res.status(500).json({ error: 'Failed to update task' });
-  } finally {
-    await connection.end();
-  }
-});
-
 // task 삭제
 app.delete('/tasks/:id', async (req, res) => {
   const { id } = req.params;
@@ -311,12 +277,6 @@ app.get('/tasks/:id', async (req, res) => {
   }
 });
 
-// 프로젝트 게시판 페이지 라우트
-app.get('/projects', (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
-  res.sendFile(path.join(__dirname, 'public', 'projects.html'));
-});
-
 // 비밀번호 변경
 app.post('/change-password', async (req, res) => {
   const { currentPassword, newPassword } = req.body;
@@ -350,6 +310,172 @@ app.delete('/delete-account', async (req, res) => {
   } catch (error) {
     console.error('Error deleting account:', error);
     res.status(500).send('Failed to delete account');
+  } finally {
+    await connection.end();
+  }
+});
+
+// weblist 페이지 라우트
+app.get('/weblist', (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  res.sendFile(path.join(__dirname, 'public', 'weblist.html'));
+});
+
+// 서비스 목록 불러오기 API
+app.get('/services', async (req, res) => {
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    const [rows] = await connection.execute('SELECT * FROM weblist ORDER BY createdAt DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    res.status(500).json({ error: 'Failed to fetch services' });
+  } finally {
+    await connection.end();
+  }
+});
+
+// 서비스 생성 API
+app.post('/services', async (req, res) => {
+  const { serviceName, url, owner, description } = req.body;
+
+  if (!serviceName || !url || !owner || !description) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    await connection.execute(
+      'INSERT INTO weblist (serviceName, url, owner, description) VALUES (?, ?, ?, ?)',
+      [serviceName, url, owner, description]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error creating service:', error);
+    res.status(500).json({ error: 'Failed to create service' });
+  } finally {
+    await connection.end();
+  }
+});
+
+// 프로젝트 페이지 라우트
+app.get('/projects', (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  res.sendFile(path.join(__dirname, 'public', 'projects.html'));
+});
+
+app.get('/api/projects', async (req, res) => {
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    // 프로젝트 목록 불러오기
+    const [projects] = await connection.execute('SELECT * FROM projects');
+
+    // 각 프로젝트의 체크리스트 불러오기
+    for (let project of projects) {
+      const [tasks] = await connection.execute(`
+        SELECT taskName, completedBy, completedAt FROM project_tasks WHERE projectId = ?
+      `, [project.id]);
+
+      project.checklist = {};
+      tasks.forEach(task => {
+        project.checklist[task.taskName] = {
+          completedBy: task.completedBy,
+          completedAt: task.completedAt
+        };
+      });
+    }
+
+    res.json(projects);
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  } finally {
+    await connection.end();
+  }
+});
+
+// 프로젝트 생성 API
+app.post('/api/projects', async (req, res) => {
+  const { projectName, pm, surveyPath, openDate } = req.body;
+
+  if (!projectName || !pm || !surveyPath || !openDate) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    const [result] = await connection.execute(
+      `INSERT INTO projects (projectName, pm, surveyPath, openDate)
+       VALUES (?, ?, ?, ?)`,
+      [projectName, pm, surveyPath, openDate]
+    );
+
+    // 각 프로젝트에 대한 체크 항목 초기화
+    const tasks = ['IP 발급', '방화벽 적용', 'VM 생성', 'OS 세팅', '접근 제어', 'V3 설치'];
+    for (const task of tasks) {
+      await connection.execute(
+        `INSERT INTO project_tasks (projectId, taskName) VALUES (?, ?)`,
+        [result.insertId, task]
+      );
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ error: 'Failed to create project' });
+  } finally {
+    await connection.end();
+  }
+});
+
+// 프로젝트 완료처리 라우트
+app.put('/api/projects/:projectId/tasks/:taskName/complete', async (req, res) => {
+  const { projectId, taskName } = req.params;
+  const completedBy = req.session.user.username;
+
+  // KST로 현재 시간 설정
+  const now = new Date();
+  const kstCompletedAt = new Date(now.getTime() + (9 * 60 * 60 * 1000))
+    .toISOString()
+    .replace('T', ' ')
+    .substring(0, 19);
+
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    // 체크리스트 항목을 완료 상태로 업데이트
+    await connection.execute(`
+      UPDATE project_tasks
+      SET completedBy = ?, completedAt = ?
+      WHERE projectId = ? AND taskName = ?
+    `, [completedBy, kstCompletedAt, projectId, taskName]);
+
+    // 진행률 업데이트 (완료된 항목 수를 기준으로 백분율 계산)
+    const [totalTasks] = await connection.execute(
+      `SELECT COUNT(*) as total FROM project_tasks WHERE projectId = ?`,
+      [projectId]
+    );
+
+    const [completedTasks] = await connection.execute(
+      `SELECT COUNT(*) as completed FROM project_tasks WHERE projectId = ? AND completedAt IS NOT NULL`,
+      [projectId]
+    );
+
+    const progress = Math.round((completedTasks[0].completed / totalTasks[0].total) * 100);
+
+    await connection.execute(
+      `UPDATE projects SET progress = ? WHERE id = ?`,
+      [progress, projectId]
+    );
+
+    res.json({ success: true, progress });
+  } catch (error) {
+    console.error('Error completing task:', error);
+    res.status(500).json({ error: 'Failed to complete task' });
   } finally {
     await connection.end();
   }
@@ -400,6 +526,13 @@ app.listen(PORT, () => {
       background-color: #f8f9fa;
       margin-bottom: 20px;
     }
+    .task-content {
+      max-width: 300px;
+      max-height: 80px;
+      text-overflow: ellipsis;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
   </style>
 </head>
 <!-- Bootstrap JavaScript 및 Popper.js 추가 -->
@@ -410,6 +543,7 @@ app.listen(PORT, () => {
     <a href="/logout" class="btn btn-secondary mb-3">Logout</a>
     <button class="btn btn-secondary mb-3" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</button>
     <button class="btn btn-secondary mb-3" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 삭제</button>
+
     <!-- 비밀번호 변경 모달 -->
     <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
       <div class="modal-dialog">
@@ -450,8 +584,10 @@ app.listen(PORT, () => {
         </div>
       </div>
     </div>
+
     <h1>작업 보드</h1>
     <a href="/projects" class="btn btn-secondary mb-3">프로젝트 보드</a>
+    <a href="/weblist" class="btn btn-secondary mb-3">웹 서비스 목록</a>
 
     <h2>작업 생성</h2>
     <form id="task-form" class="form-inline mb-4">
@@ -508,31 +644,6 @@ app.listen(PORT, () => {
       </table>
     </div>
   </div>
-  <!-- Task 수정 모달 -->
-  <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="editTaskModalLabel">Edit Task</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <form id="editTaskForm">
-            <input type="hidden" id="editTaskId">
-            <div class="mb-3">
-              <label for="editTitle" class="form-label">제목</label>
-              <input type="text" class="form-control" id="editTitle" required>
-            </div>
-            <div class="mb-3">
-              <label for="editContent" class="form-label">내용</label>
-              <textarea class="form-control" id="editContent" rows="3" required></textarea>
-            </div>
-            <button type="submit" class="btn btn-warning">저장</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <script>
     // Load users into the "Assign To" dropdown
@@ -570,7 +681,7 @@ app.listen(PORT, () => {
             row.innerHTML = `
               <td>${task.id}</td>
               <td>${task.title}</td>
-              <td>${task.content.replace(/\n/g, '<br>')}</td>
+              <td class="task-content">${task.content.replace(/\n/g, '<br>')}</td>
               <td>${task.assignedTo}</td>
               <td>${task.dueDate}</td>
               <td>${task.createdBy}</td>
@@ -578,27 +689,24 @@ app.listen(PORT, () => {
                 ${task.status === 'Complete'
                   ? `<span class="text-success">Complete</span>`
                   : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
-                  <button onclick="editTask(${task.id})" class="btn btn-warning btn-sm me-1">수정</button>
-                  <button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button>
               </td>
-              <td>${task.completedAt}</td>
+              <td>${task.completedAt} <button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button></td>
             `;
             taskList.appendChild(row);
           });
         });
     }
 
-    // Render Task List
     function renderTaskList(tasks) {
       const taskList = document.getElementById('task-list');
-      taskList.innerHTML = '';
+      taskList.innerHTML = ''; // 기존 목록 지우기
 
       tasks.forEach(task => {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${task.id}</td>
           <td>${task.title}</td>
-          <td>${task.content.replace(/\n/g, '<br>')}</td>
+          <td class="task-content">${task.content.replace(/\n/g, '<br>')}</td>
           <td>${task.assignedTo}</td>
           <td>${task.dueDate}</td>
           <td>${task.createdBy}</td>
@@ -606,10 +714,8 @@ app.listen(PORT, () => {
             ${task.status === 'Complete'
               ? `<span class="text-success">Complete</span>`
               : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
-              <button onclick="editTask(${task.id})" class="btn btn-warning btn-sm me-1">수정</button>
-              <button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button>
           </td>
-          <td>${task.completedAt}</td>
+          <td>${task.completedAt} <button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button></td>
         `;
         taskList.appendChild(row);
       });
@@ -656,7 +762,6 @@ app.listen(PORT, () => {
         });
     }
 
-    // Initial Load
     loadTasks();
 
     let latestTaskTime = null;
@@ -713,56 +818,6 @@ app.listen(PORT, () => {
           window.location.href = '/login';
         })
         .catch(err => alert(err.message));
-    });
-
-    // Edit Task 함수
-    function editTask(id) {
-      fetch(`/tasks/${id}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to fetch task data');
-          return res.json();
-        })
-        .then(task => {
-          document.getElementById('editTaskId').value = task.id;
-          document.getElementById('editTitle').value = task.title;
-          document.getElementById('editContent').value = task.content;
-          new bootstrap.Modal(document.getElementById('editTaskModal')).show();
-        })
-        .catch(err => {
-          console.error('Error fetching task:', err);
-          alert('Error fetching task data');
-        });
-    }
-
-
-    // Task 수정 핸들러
-    document.getElementById('editTaskForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      const id = document.getElementById('editTaskId').value;
-      const updatedTask = {
-        title: document.getElementById('editTitle').value,
-        content: document.getElementById('editContent').value
-      };
-
-      fetch(`/tasks/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedTask)
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to update task');
-          return res.json();
-        })
-        .then(() => {
-          alert('Task updated successfully');
-          loadTasks();
-          bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide();
-        })
-        .catch(err => {
-          console.error('Error updating task:', err);
-          alert(err.message);
-        });
     });
 
     // Delete Task 함수
@@ -848,8 +903,344 @@ app.listen(PORT, () => {
 </html>
 ```
 
+### weblist.html
+```
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>웹 서비스 목록</title>
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <style>
+    .form-inline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .form-inline .form-control {
+      width: auto;
+    }
+    .service-box {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      margin-bottom: 20px;
+    }
+    .service-content {
+      max-width: 300px;
+      max-height: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-5">
+    <h1>웹 서비스 목록</h1>
+    <a href="/dashboard" class="btn btn-secondary mb-3">작업 보드</a>
+    <a href="/projects" class="btn btn-secondary mb-3">프로젝트 보드</a>
+
+    <h2>웹 서비스 등록</h2>
+    <form id="web-form" class="form-inline mb-4">
+      <div class="mb-3">
+        <label for="serviceName" class="form-label">서비스 이름</label>
+        <input type="text" class="form-control" id="serviceName" required>
+      </div>
+      <div class="mb-3">
+        <label for="serviceURL" class="form-label">URL 주소</label>
+        <input type="url" class="form-control" id="serviceURL" required>
+      </div>
+      <div class="mb-3">
+        <label for="owner" class="form-label">담당자</label>
+        <input type="text" class="form-control" id="owner" required>
+      </div>
+      <div class="mb-3">
+        <label for="description" class="form-label">설명</label>
+        <input type="text" class="form-control" id="description" required>
+      </div>
+      <button type="submit" class="btn btn-primary">생성</button>
+    </form>
+
+    <h2>등록된 웹 서비스 목록</h2>
+    <div class="service-box">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>서비스 이름</th>
+            <th>URL 주소</th>
+            <th>담당자</th>
+            <th>설명</th>
+          </tr>
+        </thead>
+        <tbody id="service-list"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Load Services
+    function loadServices() {
+      fetch('/services')
+        .then(res => res.json())
+        .then(services => {
+          const serviceList = document.getElementById('service-list');
+          serviceList.innerHTML = ''; // 기존 목록 지우기
+
+          services.forEach(service => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${service.serviceName}</td>
+              <td><a href="${service.url}" target="_blank">${service.url}</a></td>
+              <td>${service.owner}</td>
+              <td class="service-content">${service.description}</td>
+            `;
+            serviceList.appendChild(row);
+          });
+        })
+        .catch(err => console.error('Error loading services:', err));
+    }
+
+    // Create Service
+    document.getElementById('web-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const service = {
+        serviceName: document.getElementById('serviceName').value,
+        url: document.getElementById('serviceURL').value,
+        owner: document.getElementById('owner').value,
+        description: document.getElementById('description').value
+      };
+
+      fetch('/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(service)
+      })
+      .then(res => res.json())
+      .then(() => {
+        loadServices();
+        document.getElementById('web-form').reset(); // 폼 리셋
+      })
+      .catch(err => console.error('Error creating service:', err));
+    });
+
+    // Initial Load
+    loadServices();
+  </script>
+</body>
+</html>
+```
+
+### projects.html
+```
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>프로젝트 보드</title>
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <style>
+    .form-inline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .task-box {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      margin-bottom: 20px;
+    }
+    .due-date-input {
+      max-width: 250px;
+    }
+    .checklist {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .checklist button {
+      margin-right: 10px;
+    }
+    .completed-info {
+      font-size: 0.9em;
+      color: #555;
+      margin-top: 5px;
+    }
+    .project-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-5">
+    <h1>프로젝트 보드</h1>
+    <a href="/dashboard" class="btn btn-secondary mb-3">작업 보드</a>
+    <a href="/weblist" class="btn btn-secondary mb-3">웹 서비스 항목</a>
+
+    <h2>프로젝트 생성</h2>
+    <form id="project-form" class="form-inline mb-4">
+      <input type="text" class="form-control mb-2" id="projectName" placeholder="프로젝트 이름" maxlength="20" required>
+      <input type="text" class="form-control mb-2" id="surveyPath" placeholder="조사양식 경로" required>
+      <div class="mb-2">
+        <label for="pm" class="form-label">PM</label>
+        <input type="text" class="form-control due-date-input" id="pm" required>
+      </div>
+      <div class="mb-2">
+        <label for="openDate" class="form-label">오픈일</label>
+        <input type="datetime-local" class="form-control due-date-input" id="openDate" required>
+      </div>
+      <button type="submit" class="btn btn-primary mb-2">생성</button>
+    </form>
+
+    <h2>프로젝트 목록</h2>
+    <div id="project-list" class="task-box"></div>
+  </div>
+
+  <script>
+    // 프로젝트 목록 불러오기
+    function loadProjects() {
+      fetch('/api/projects')
+        .then(res => res.json())
+        .then(projects => {
+          console.log('Projects:', projects); // 디버그용 로그 추가
+          const projectList = document.getElementById('project-list');
+          projectList.innerHTML = '';
+          projects.forEach(project => {
+            const div = document.createElement('div');
+            div.classList.add('mb-4');
+            div.innerHTML = `
+              <div class="project-header">
+                <h4>${project.projectName} (${project.progress}%)</h4>
+                <p>PM: ${project.pm}</p>
+              </div>
+              <p>조사양식 경로: ${project.surveyPath}</p>
+              <p>오픈일: ${formatDate(project.openDate)}</p>
+              <div class="checklist" id="checklist-${project.id}">
+                ${renderChecklist(project.id, project.checklist)}
+              </div>
+            `;
+            projectList.appendChild(div);
+          });
+        })
+        .catch(err => console.error('Error loading projects:', err));
+    }
+
+    // 프로젝트 생성
+    document.getElementById('project-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const project = {
+        projectName: document.getElementById('projectName').value,
+        pm: document.getElementById('pm').value,
+        surveyPath: document.getElementById('surveyPath').value,
+        openDate: document.getElementById('openDate').value
+      };
+      fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(project)
+      })
+      .then(() => {
+        loadProjects();
+        document.getElementById('project-form').reset();
+      });
+    });
+
+    // 체크 리스트 완료 처리
+    function completeChecklistItem(projectId, taskName) {
+      fetch(`/api/projects/${projectId}/tasks/${encodeURIComponent(taskName)}/complete`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to complete task');
+          }
+          return response.json();
+        })
+        .then(() => {
+          loadProjects(); // 완료 후 프로젝트 목록 새로고침
+        })
+        .catch(err => console.error('Error completing task:', err));
+    }
+
+    // 체크리스트 렌더링 함수
+    function renderChecklist(projectId, checklist) {
+      const checklistItems = [
+        'IP 발급',
+        '방화벽 적용',
+        'VM 생성',
+        'OS 세팅',
+        '접근 제어',
+        'V3 설치'
+      ];
+
+      checklist = checklist || {};
+
+      return checklistItems.map(item => {
+        const isChecked = checklist[item] && checklist[item].completedAt;
+        const completedBy = isChecked ? checklist[item].completedBy : '';
+        const completedAt = isChecked ? formatDate(checklist[item].completedAt) : '';
+
+        return `
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input" id="check-${projectId}-${item}" ${isChecked ? 'checked disabled' : ''}>
+            <label class="form-check-label" for="check-${projectId}-${item}">
+              ${item} ${isChecked ? ` (완료: ${completedBy} @ ${completedAt})` : ''}
+            </label>
+            ${!isChecked ? `<button class="btn btn-sm btn-success" onclick="completeChecklistItem(${projectId}, '${item}')">완료</button>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 체크 항목 완료 처리
+    function completeTask(projectId, taskId) {
+      fetch(`/api/projects/${projectId}/tasks/${taskId}/complete`, { method: 'PUT' })
+        .then(() => loadProjects())
+        .catch(err => console.error('Error completing task:', err));
+    }
+
+    // 페이지 로드 시 프로젝트 목록 불러오기
+    loadProjects();
+  </script>
+  <script>
+  function formatDate(dateString) {
+    if (!dateString) return '-';
+
+    const date = new Date(dateString);
+    // KST로 변환 (UTC + 9)
+    const kstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+
+    // 날짜 추출
+    const year = kstDate.getFullYear();
+    const month = String(kstDate.getMonth() + 1).padStart(2, '0');
+    const day = String(kstDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
+  </script>
+</body>
+</html>
+```
+
 ## taskdb DB
-### 
+* 테이블 컬럼 추가 참고용 ALTER TABLE users ADD COLUMN role ENUM('admin', 'user') DEFAULT 'user';
+* 테이블 수정 참고용 ALTER TABLE tasks MODIFY completedAt DATETIME DEFAULT NULL;
+
+### 작업 테이블 생성
 ```
 CREATE TABLE tasks (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -862,7 +1253,10 @@ CREATE TABLE tasks (
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   completedAt DATETIME DEFAULT NULL
 )DEFAULT CHARSET=UTF8;
+```
 
+### 사용자 테이블 생성
+```
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,
@@ -870,10 +1264,41 @@ CREATE TABLE users (
   name VARCHAR(100) NOT NULL,
   role ENUM('admin', 'user') DEFAULT 'user'
 )DEFAULT CHARSET=UTF8;
+```
 
-# 테이블 컬러 추가 참고용 ALTER TABLE users ADD COLUMN role ENUM('admin', 'user') DEFAULT 'user';
+### 웹 서비스 테이블 생성
+```
+CREATE TABLE weblist (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  serviceName VARCHAR(255) NOT NULL,
+  url VARCHAR(255) NOT NULL,
+  owner VARCHAR(50) NOT NULL,
+  description TEXT NOT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)DEFAULT CHARSET=UTF8;
+```
 
-# 테이블 수정 참고용 ALTER TABLE tasks MODIFY completedAt DATETIME DEFAULT NULL;
+### 프로젝트 테이블 생성
+```
+CREATE TABLE projects (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  projectName VARCHAR(20) NOT NULL,
+  pm VARCHAR(50) NOT NULL,
+  surveyPath VARCHAR(255) NOT NULL,
+  dueDate DATETIME NOT NULL,
+  openDate DATETIME NOT NULL,
+  progress INT DEFAULT 0
+)DEFAULT CHARSET=UTF8;
+
+CREATE TABLE project_tasks (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  projectId INT,
+  taskId INT,
+  taskName VARCHAR(50),
+  completedBy VARCHAR(50),
+  completedAt DATETIME,
+  FOREIGN KEY (projectId) REFERENCES projects(id)
+)DEFAULT CHARSET=UTF8;
 ```
 
 ## Docker
