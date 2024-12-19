@@ -360,6 +360,27 @@ app.post('/services', async (req, res) => {
   }
 });
 
+// 서비스 수정
+app.put('/services/:id', async (req, res) => {
+  const { id } = req.params;
+  const { serviceName, url, owner, description } = req.body;
+
+  const connection = await mysql.createConnection(dbConfig);
+
+  try {
+    await connection.execute(
+      'UPDATE weblist SET serviceName = ?, url = ?, owner = ?, description = ? WHERE id = ?',
+      [serviceName, url, owner, description, id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating service:', error);
+    res.status(500).json({ error: 'Failed to update service' });
+  } finally {
+    await connection.end();
+  }
+});
+
 // 프로젝트 페이지 라우트
 app.get('/projects', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
@@ -439,10 +460,13 @@ app.put('/api/projects/:projectId/tasks/:taskName/complete', async (req, res) =>
 
   // KST로 현재 시간 설정
   const now = new Date();
+//  const kstCompletedAt = new Date(now.getTime() + (9 * 60 * 60 * 1000))
+//    .toISOString()
+//    .replace('T', ' ')
+//    .substring(0, 19);
   const kstCompletedAt = new Date(now.getTime() + (9 * 60 * 60 * 1000))
-    .toISOString()
-    .replace('T', ' ')
-    .substring(0, 19);
+  .toISOString()
+  .split('T')[0]; // YYYY-MM-DD 형식으로 변환
 
   const connection = await mysql.createConnection(dbConfig);
 
@@ -500,7 +524,7 @@ app.listen(PORT, () => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>개발중</title>
+  <title>작업 보드</title>
   <link rel="stylesheet" href="/css/bootstrap.min.css">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <style>
@@ -533,6 +557,20 @@ app.listen(PORT, () => {
       white-space: pre-wrap;
       word-wrap: break-word;
     }
+    .user-menu {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    .user-icon {
+      border: none;
+      background: none;
+      padding: 0;
+    }
+    .user-icon img {
+      border: 2px solid #ccc;
+    }
   </style>
 </head>
 <!-- Bootstrap JavaScript 및 Popper.js 추가 -->
@@ -540,9 +578,19 @@ app.listen(PORT, () => {
 <script src="/js/bootstrap.min.js"></script>
 <body>
   <div class="container mt-5">
-    <a href="/logout" class="btn btn-secondary mb-3">Logout</a>
-    <button class="btn btn-secondary mb-3" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</button>
-    <button class="btn btn-secondary mb-3" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 삭제</button>
+    <!-- 사용자 메뉴 아이콘 -->
+    <div class="user-menu">
+      <div class="dropdown">
+        <button class="btn btn-secondary dropdown-toggle user-icon" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+          <img src="/images/user-icon.png" alt="User Icon" class="rounded-circle" width="30" height="30">
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</a></li>
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 탈퇴</a></li>
+          <li><a class="dropdown-item" href="/logout">로그아웃</a></li>
+        </ul>
+      </div>
+    </div>
 
     <!-- 비밀번호 변경 모달 -->
     <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
@@ -559,10 +607,10 @@ app.listen(PORT, () => {
                 <input type="password" class="form-control" id="currentPassword" required>
               </div>
               <div class="mb-3">
-                <label for="newPassword" class="form-label">새로운 비밀변호</label>
+                <label for="newPassword" class="form-label">새 비밀번호</label>
                 <input type="password" class="form-control" id="newPassword" required>
               </div>
-              <button type="submit" class="btn btn-warning">변경</button>
+              <button type="submit" class="btn btn-primary">변경</button>
             </form>
           </div>
         </div>
@@ -574,12 +622,12 @@ app.listen(PORT, () => {
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="deleteAccountModalLabel">Delete Account</h5>
+            <h5 class="modal-title" id="deleteAccountModalLabel">계정 탈퇴</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <p>Are you sure you want to delete your account? This action cannot be undone.</p>
-            <button id="confirmDeleteAccount" class="btn btn-danger">Delete Account</button>
+            <p>정말로 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.</p>
+            <button id="confirmDeleteAccount" class="btn btn-danger">탈퇴</button>
           </div>
         </div>
       </div>
@@ -638,6 +686,7 @@ app.listen(PORT, () => {
             <th>작성자</th>
             <th>상태</th>
             <th>완료일</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="task-list"></tbody>
@@ -646,225 +695,196 @@ app.listen(PORT, () => {
   </div>
 
   <script>
-    // Load users into the "Assign To" dropdown
-    fetch('/users')
+  // Load users into the "Assign To" dropdown
+  fetch('/users')
+    .then(res => res.json())
+    .then(users => {
+      const assignToSelect = document.getElementById('assignedTo');
+      users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user;
+        option.textContent = user;
+        assignToSelect.appendChild(option);
+      });
+    });
+
+  // Load Task List
+  function loadTasks() {
+    fetch('/tasks')
       .then(res => res.json())
-      .then(users => {
-        const assignToSelect = document.getElementById('assignedTo');
-        users.forEach(user => {
-          const option = document.createElement('option');
-          option.value = user;
-          option.textContent = user;
-          assignToSelect.appendChild(option);
+      .then(tasks => renderTaskList(tasks));
+  }
+
+  // Task List limit
+  document.getElementById('taskLimit').addEventListener('change', loadTasks);
+  function loadTasks() {
+    const limit = document.getElementById('taskLimit').value;
+    fetch(`/tasks?limit=${limit}`)
+      .then(res => res.json())
+      .then(tasks => {
+        const taskList = document.getElementById('task-list');
+        taskList.innerHTML = ''; // 기존 목록 지우기
+
+        tasks.forEach(task => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${task.id}</td>
+            <td>${task.title}</td>
+            <td class="task-content">${task.content.replace(/\n/g, '<br>')}</td>
+            <td>${task.assignedTo}</td>
+            <td>${task.dueDate}</td>
+            <td>${task.createdBy}</td>
+            <td>
+              ${task.status === 'Complete'
+                ? `<span class="text-success">Complete</span>`
+                : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
+            </td>
+            <td>${task.completedAt}</td>
+            <td><button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button></td>
+          `;
+          taskList.appendChild(row);
         });
       });
+  }
 
-    // Load Task List
-    function loadTasks() {
-      fetch('/tasks')
-        .then(res => res.json())
-        .then(tasks => renderTaskList(tasks));
-    }
+  function renderTaskList(tasks) {
+    const taskList = document.getElementById('task-list');
+    taskList.innerHTML = ''; // 기존 목록 지우기
 
-    // Task List limit
-    document.getElementById('taskLimit').addEventListener('change', loadTasks);
-    function loadTasks() {
-      const limit = document.getElementById('taskLimit').value;
-      fetch(`/tasks?limit=${limit}`)
-        .then(res => res.json())
-        .then(tasks => {
-          const taskList = document.getElementById('task-list');
-          taskList.innerHTML = ''; // 기존 목록 지우기
+    tasks.forEach(task => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${task.id}</td>
+        <td>${task.title}</td>
+        <td class="task-content">${task.content.replace(/\n/g, '<br>')}</td>
+        <td>${task.assignedTo}</td>
+        <td>${task.dueDate}</td>
+        <td>${task.createdBy}</td>
+        <td>
+          ${task.status === 'Complete'
+            ? `<span class="text-success">Complete</span>`
+            : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
+        </td>
+        <td>${task.completedAt}</td>
+        <td><button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button></td>
+      `;
+      taskList.appendChild(row);
+    });
+  }
 
-          tasks.forEach(task => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-              <td>${task.id}</td>
-              <td>${task.title}</td>
-              <td class="task-content">${task.content.replace(/\n/g, '<br>')}</td>
-              <td>${task.assignedTo}</td>
-              <td>${task.dueDate}</td>
-              <td>${task.createdBy}</td>
-              <td>
-                ${task.status === 'Complete'
-                  ? `<span class="text-success">Complete</span>`
-                  : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
-              </td>
-              <td>${task.completedAt} <button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button></td>
-            `;
-            taskList.appendChild(row);
-          });
-        });
-    }
+  // Create Task
+  document.getElementById('task-form').addEventListener('submit', handleTaskSubmit);
+  function handleTaskSubmit(e) {
+    e.preventDefault();
+    const task = {
+      title: document.getElementById('title').value,
+      content: document.getElementById('content').value,
+      assignedTo: document.getElementById('assignedTo').value,
+      dueDate: document.getElementById('dueDate').value
+    };
 
-    function renderTaskList(tasks) {
-      const taskList = document.getElementById('task-list');
-      taskList.innerHTML = ''; // 기존 목록 지우기
+    fetch('/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(task)
+    })
+    .then(res => res.json())
+    .then(() => loadTasks());
+  }
 
-      tasks.forEach(task => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${task.id}</td>
-          <td>${task.title}</td>
-          <td class="task-content">${task.content.replace(/\n/g, '<br>')}</td>
-          <td>${task.assignedTo}</td>
-          <td>${task.dueDate}</td>
-          <td>${task.createdBy}</td>
-          <td>
-            ${task.status === 'Complete'
-              ? `<span class="text-success">Complete</span>`
-              : `<button onclick="completeTask(${task.id})" class="btn btn-success btn-sm">완료버튼</button>`}
-          </td>
-          <td>${task.completedAt} <button onclick="deleteTask(${task.id})" class="btn btn-danger btn-sm">삭제</button></td>
-        `;
-        taskList.appendChild(row);
-      });
-    }
-
-    // Create Task
-    document.getElementById('task-form').addEventListener('submit', handleTaskSubmit);
-    function handleTaskSubmit(e) {
-      e.preventDefault();
-      const task = {
-        title: document.getElementById('title').value,
-        content: document.getElementById('content').value,
-        assignedTo: document.getElementById('assignedTo').value,
-        dueDate: document.getElementById('dueDate').value
-      };
-
-      fetch('/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(task)
-      })
-      .then(res => res.json())
+  // Complete Task
+  function completeTask(id) {
+    fetch(`/tasks/${id}`, { method: 'PUT' })
       .then(() => loadTasks());
-    }
+  }
 
-    // Complete Task
-    function completeTask(id) {
-      fetch(`/tasks/${id}`, { method: 'PUT' })
-        .then(() => loadTasks());
-    }
+  // Filter Tasks by Keyword
+  function filterTasks() {
+    const filterKeyword = document.getElementById('filterKeyword').value.trim().toLowerCase();
 
-    // Filter Tasks by Keyword
-    function filterTasks() {
-      const filterKeyword = document.getElementById('filterKeyword').value.trim().toLowerCase();
+    fetch('/tasks')
+      .then(res => res.json())
+      .then(tasks => {
+        const filteredTasks = tasks.filter(task =>
+          task.title.toLowerCase().includes(filterKeyword) ||
+          task.content.toLowerCase().includes(filterKeyword)
+        );
+        renderTaskList(filteredTasks);
+      });
+  }
 
-      fetch('/tasks')
-        .then(res => res.json())
-        .then(tasks => {
-          const filteredTasks = tasks.filter(task =>
-            task.title.toLowerCase().includes(filterKeyword) ||
-            task.content.toLowerCase().includes(filterKeyword)
-          );
-          renderTaskList(filteredTasks);
-        });
-    }
+  loadTasks();
 
-    loadTasks();
+  let latestTaskTime = null;
+  // 5초마다 새로운 Task가 있는지 확인
+  setInterval(checkForNewTasks, 5000);
 
-    let latestTaskTime = null;
-    // 5초마다 새로운 Task가 있는지 확인
-    setInterval(checkForNewTasks, 5000);
-
-    function checkForNewTasks() {
-      fetch('/tasks/latest')
-        .then(res => res.json())
-        .then(data => {
-          if (!latestTaskTime) {
-            latestTaskTime = data.latest;
-          } else if (data.latest !== latestTaskTime) {
-            latestTaskTime = data.latest;
-            loadTasks(); // 새로운 Task가 있으면 Task List 새로고침
-          }
-        })
-        .catch(err => console.error('Error checking for new tasks:', err));
-    }
-
-    // 비밀번호 변경 핸들러
-    document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      const currentPassword = document.getElementById('currentPassword').value;
-      const newPassword = document.getElementById('newPassword').value;
-
-      fetch('/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword })
+  function checkForNewTasks() {
+    fetch('/tasks/latest')
+      .then(res => res.json())
+      .then(data => {
+        if (!latestTaskTime) {
+          latestTaskTime = data.latest;
+        } else if (data.latest !== latestTaskTime) {
+          latestTaskTime = data.latest;
+          loadTasks(); // 새로운 Task가 있으면 Task List 새로고침
+        }
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Password change failed');
-          return res.text();
-        })
-        .then(message => {
-          alert(message);
-          document.getElementById('changePasswordForm').reset();
-          bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
-        })
-        .catch(err => alert(err.message));
-    });
+      .catch(err => console.error('Error checking for new tasks:', err));
+  }
 
-    // 계정 탈퇴 핸들러
-    document.getElementById('confirmDeleteAccount').addEventListener('click', () => {
-      fetch('/delete-account', { method: 'DELETE' })
-        .then(res => {
-          if (!res.ok) throw new Error('Account deletion failed');
-          return res.text();
-        })
-        .then(message => {
-          alert(message);
-          window.location.href = '/login';
-        })
-        .catch(err => alert(err.message));
-    });
+  // Delete Task 함수
+  function deleteTask(id) {
+    if (!confirm('Are you sure you want to delete this task?')) return;
 
-    // Delete Task 함수
-    function deleteTask(id) {
-      if (!confirm('Are you sure you want to delete this task?')) return;
-
-      fetch(`/tasks/${id}`, { method: 'DELETE' })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete task');
-          return res.json();
-        })
-        .then(() => loadTasks())
-        .catch(err => alert(err.message));
-    }
+    fetch(`/tasks/${id}`, { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to delete task');
+        return res.json();
+      })
+      .then(() => loadTasks())
+      .catch(err => alert(err.message));
+  }
   </script>
-</body>
-</html>
-```
 
-### login.html
-```
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login</title>
-  <link rel="stylesheet" href="/css/bootstrap.min.css">
-</head>
-<body>
-  <div class="container mt-5">
-    <h1>Login</h1>
-    <form action="/login" method="POST">
-      <div class="mb-3">
-        <label for="username" class="form-label">Username</label>
-        <input type="text" class="form-control" id="username" name="username" required>
-      </div>
-      <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" name="password" required>
-      </div>
-      <button type="submit" class="btn btn-primary">Login</button>
-    </form>
-    <p class="mt-3">
-      Don't have an account? <a href="/register" class="btn btn-outline-secondary">Register here</a>
-    </p>
-  </div>
+  <script>
+  // 비밀번호 변경 핸들러
+  document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+
+    fetch('/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('비밀번호 변경 실패');
+      return res.text();
+    })
+    .then(message => {
+      alert(message);
+      document.getElementById('changePasswordForm').reset();
+      bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+    })
+    .catch(err => alert(err.message));
+  });
+
+  // 계정 탈퇴 핸들러
+  document.getElementById('confirmDeleteAccount').addEventListener('click', () => {
+    fetch('/delete-account', { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('계정 탈퇴 실패');
+        return res.text();
+      })
+      .then(message => {
+        alert(message);
+        window.location.href = '/login';
+      })
+      .catch(err => alert(err.message));
+  });
+  </script>
 </body>
 </html>
 ```
@@ -898,6 +918,38 @@ app.listen(PORT, () => {
       <button type="submit" class="btn btn-primary">Register</button>
     </form>
     <p class="mt-3">Already have an account? <a href="/login">Login here</a></p>
+  </div>
+</body>
+</html>
+```
+
+### login.html
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h1>Login</h1>
+    <form action="/login" method="POST">
+      <div class="mb-3">
+        <label for="username" class="form-label">Username</label>
+        <input type="text" class="form-control" id="username" name="username" required>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+    <p class="mt-3">
+      Don't have an account? <a href="/register" class="btn btn-outline-secondary">회원가입</a>
+    </p>
   </div>
 </body>
 </html>
@@ -938,10 +990,81 @@ app.listen(PORT, () => {
       white-space: pre-wrap;
       word-wrap: break-word;
     }
+    .user-menu {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    .user-icon {
+      border: none;
+      background: none;
+      padding: 0;
+    }
+    .user-icon img {
+      border: 2px solid #ccc;
+    }
   </style>
 </head>
+<script src="/js/popper.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
 <body>
   <div class="container mt-5">
+    <!-- 사용자 메뉴 아이콘 -->
+    <div class="user-menu">
+      <div class="dropdown">
+        <button class="btn btn-secondary dropdown-toggle user-icon" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+          <img src="/images/user-icon.png" alt="User Icon" class="rounded-circle" width="30" height="30">
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</a></li>
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 탈퇴</a></li>
+          <li><a class="dropdown-item" href="/logout">로그아웃</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 비밀번호 변경 모달 -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="changePasswordModalLabel">비밀번호 변경</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="changePasswordForm">
+              <div class="mb-3">
+                <label for="currentPassword" class="form-label">현재 비밀번호</label>
+                <input type="password" class="form-control" id="currentPassword" required>
+              </div>
+              <div class="mb-3">
+                <label for="newPassword" class="form-label">새 비밀번호</label>
+                <input type="password" class="form-control" id="newPassword" required>
+              </div>
+              <button type="submit" class="btn btn-primary">변경</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 계정 탈퇴 모달 -->
+    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteAccountModalLabel">계정 탈퇴</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>정말로 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.</p>
+            <button id="confirmDeleteAccount" class="btn btn-danger">탈퇴</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <h1>웹 서비스 목록</h1>
     <a href="/dashboard" class="btn btn-secondary mb-3">작업 보드</a>
     <a href="/projects" class="btn btn-secondary mb-3">프로젝트 보드</a>
@@ -967,17 +1090,52 @@ app.listen(PORT, () => {
       <button type="submit" class="btn btn-primary">생성</button>
     </form>
 
+    <!-- 수정 모달 -->
+    <div class="modal fade" id="editServiceModal" tabindex="-1" aria-labelledby="editServiceModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editServiceModalLabel">서비스 수정</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-service-form">
+              <input type="hidden" id="edit-service-id">
+              <div class="mb-3">
+                <label for="edit-service-name" class="form-label">서비스 이름</label>
+                <input type="text" class="form-control" id="edit-service-name" required>
+              </div>
+              <div class="mb-3">
+                <label for="edit-service-url" class="form-label">URL 주소</label>
+                <input type="text" class="form-control" id="edit-service-url" required>
+              </div>
+              <div class="mb-3">
+                <label for="edit-service-owner" class="form-label">담당자</label>
+                <input type="text" class="form-control" id="edit-service-owner" required>
+              </div>
+              <div class="mb-3">
+                <label for="edit-service-description" class="form-label">설명</label>
+                <textarea class="form-control" id="edit-service-description" rows="3" required></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">저장</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <h2>등록된 웹 서비스 목록</h2>
     <div class="service-box">
       <table class="table">
-        <thead>
-          <tr>
-            <th>서비스 이름</th>
-            <th>URL 주소</th>
-            <th>담당자</th>
-            <th>설명</th>
-          </tr>
-        </thead>
+         <thead>
+           <tr>
+             <th>서비스 이름</th>
+             <th>URL 주소</th>
+             <th>담당자</th>
+             <th>설명</th>
+             <th></th>   <!-- 수정 버튼이 들어갈 열 -->
+           </tr>
+         </thead>
         <tbody id="service-list"></tbody>
       </table>
     </div>
@@ -999,13 +1157,15 @@ app.listen(PORT, () => {
               <td><a href="${service.url}" target="_blank">${service.url}</a></td>
               <td>${service.owner}</td>
               <td class="service-content">${service.description}</td>
+              <td>
+                <button class="btn btn-sm btn-warning" onclick="openEditModal(${service.id}, '${service.serviceName}', '${service.url}', '${service.owner}', '${service.description}')">수정</button>
+              </td>
             `;
             serviceList.appendChild(row);
           });
         })
         .catch(err => console.error('Error loading services:', err));
     }
-
     // Create Service
     document.getElementById('web-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -1030,8 +1190,77 @@ app.listen(PORT, () => {
       .catch(err => console.error('Error creating service:', err));
     });
 
+    function openEditModal(id, name, url, owner, description) {
+      document.getElementById('edit-service-id').value = id;
+      document.getElementById('edit-service-name').value = name;
+      document.getElementById('edit-service-url').value = url;
+      document.getElementById('edit-service-owner').value = owner;
+      document.getElementById('edit-service-description').value = description;
+      new bootstrap.Modal(document.getElementById('editServiceModal')).show();
+    }
+
+    document.getElementById('edit-service-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const id = document.getElementById('edit-service-id').value;
+      const service = {
+        serviceName: document.getElementById('edit-service-name').value,
+        url: document.getElementById('edit-service-url').value,
+        owner: document.getElementById('edit-service-owner').value,
+        description: document.getElementById('edit-service-description').value
+      };
+
+      fetch(`/services/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(service)
+      })
+        .then(() => {
+          loadServices();
+          bootstrap.Modal.getInstance(document.getElementById('editServiceModal')).hide();
+        });
+    });
+
     // Initial Load
     loadServices();
+  </script>
+
+  <script>
+  // 비밀번호 변경 핸들러
+  document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+
+    fetch('/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('비밀번호 변경 실패');
+      return res.text();
+    })
+    .then(message => {
+      alert(message);
+      document.getElementById('changePasswordForm').reset();
+      bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+    })
+    .catch(err => alert(err.message));
+  });
+
+  // 계정 탈퇴 핸들러
+  document.getElementById('confirmDeleteAccount').addEventListener('click', () => {
+    fetch('/delete-account', { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('계정 탈퇴 실패');
+        return res.text();
+      })
+      .then(message => {
+        alert(message);
+        window.location.href = '/login';
+      })
+      .catch(err => alert(err.message));
+  });
   </script>
 </body>
 </html>
@@ -1082,10 +1311,81 @@ app.listen(PORT, () => {
       justify-content: space-between;
       align-items: center;
     }
+    .user-menu {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    .user-icon {
+      border: none;
+      background: none;
+      padding: 0;
+    }
+    .user-icon img {
+      border: 2px solid #ccc;
+    }
   </style>
 </head>
+<script src="/js/popper.min.js"></script>
+<script src="/js/bootstrap.min.js"></script>
 <body>
   <div class="container mt-5">
+    <!-- 사용자 메뉴 아이콘 -->
+    <div class="user-menu">
+      <div class="dropdown">
+        <button class="btn btn-secondary dropdown-toggle user-icon" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+          <img src="/images/user-icon.png" alt="User Icon" class="rounded-circle" width="30" height="30">
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</a></li>
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 탈퇴</a></li>
+          <li><a class="dropdown-item" href="/logout">로그아웃</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 비밀번호 변경 모달 -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="changePasswordModalLabel">비밀번호 변경</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="changePasswordForm">
+              <div class="mb-3">
+                <label for="currentPassword" class="form-label">현재 비밀번호</label>
+                <input type="password" class="form-control" id="currentPassword" required>
+              </div>
+              <div class="mb-3">
+                <label for="newPassword" class="form-label">새 비밀번호</label>
+                <input type="password" class="form-control" id="newPassword" required>
+              </div>
+              <button type="submit" class="btn btn-primary">변경</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 계정 탈퇴 모달 -->
+    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteAccountModalLabel">계정 탈퇴</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>정말로 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.</p>
+            <button id="confirmDeleteAccount" class="btn btn-danger">탈퇴</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <h1>프로젝트 보드</h1>
     <a href="/dashboard" class="btn btn-secondary mb-3">작업 보드</a>
     <a href="/weblist" class="btn btn-secondary mb-3">웹 서비스 항목</a>
@@ -1099,123 +1399,144 @@ app.listen(PORT, () => {
         <input type="text" class="form-control due-date-input" id="pm" required>
       </div>
       <div class="mb-2">
-        <label for="openDate" class="form-label">오픈일</label>
-        <input type="datetime-local" class="form-control due-date-input" id="openDate" required>
+        <label for="openDate" class="form-label">오픈 예정일</label>
+        <input type="date" class="form-control due-date-input" id="openDate" required>
       </div>
       <button type="submit" class="btn btn-primary mb-2">생성</button>
     </form>
 
+    <!-- 완료된 프로젝트 보기 토글 버튼 -->
+    <button id="toggle-completed-btn" class="btn btn-info mb-4">완료된 프로젝트 보기</button>
+
     <h2>프로젝트 목록</h2>
     <div id="project-list" class="task-box"></div>
+    <div id="completed-project-list" class="task-box" style="display: none;"></div>
   </div>
 
   <script>
-    // 프로젝트 목록 불러오기
-    function loadProjects() {
-      fetch('/api/projects')
-        .then(res => res.json())
-        .then(projects => {
-          console.log('Projects:', projects); // 디버그용 로그 추가
-          const projectList = document.getElementById('project-list');
-          projectList.innerHTML = '';
-          projects.forEach(project => {
-            const div = document.createElement('div');
-            div.classList.add('mb-4');
-            div.innerHTML = `
-              <div class="project-header">
-                <h4>${project.projectName} (${project.progress}%)</h4>
-                <p>PM: ${project.pm}</p>
-              </div>
-              <p>조사양식 경로: ${project.surveyPath}</p>
-              <p>오픈일: ${formatDate(project.openDate)}</p>
-              <div class="checklist" id="checklist-${project.id}">
-                ${renderChecklist(project.id, project.checklist)}
-              </div>
-            `;
-            projectList.appendChild(div);
-          });
-        })
-        .catch(err => console.error('Error loading projects:', err));
-    }
+   // 프로젝트 목록 불러오기
+   function loadProjects(showCompleted = false) {
+     fetch('/api/projects')
+       .then(res => res.json())
+       .then(projects => {
+         const projectList = document.getElementById('project-list');
+         const completedProjectList = document.getElementById('completed-project-list');
+         projectList.innerHTML = '';
+         completedProjectList.innerHTML = '';
+         projects.forEach(project => {
+           const div = document.createElement('div');
+           div.classList.add('mb-4');
+           div.innerHTML = `
+             <div class="project-header">
+               <h4>${project.projectName} (${project.progress}%)</h4>
+               <p>PM: ${project.pm}</p>
+             </div>
+             <p>조사양식 경로: ${project.surveyPath}</p>
+             <p>오픈일: ${formatDate(project.openDate)}</p>
+             <div class="checklist" id="checklist-${project.id}">
+               ${renderChecklist(project.id, project.checklist)}
+             </div>
+           `;
+           if (project.progress === 100) {
+               completedProjectList.appendChild(div);
+             } else {
+               projectList.appendChild(div);
+             }
+           });
+           // 완료된 프로젝트 목록 표시 여부
+           completedProjectList.style.display = showCompleted ? 'block' : 'none';
+       })
+       .catch(err => console.error('Error loading projects:', err));
+   }
 
-    // 프로젝트 생성
-    document.getElementById('project-form').addEventListener('submit', e => {
-      e.preventDefault();
-      const project = {
-        projectName: document.getElementById('projectName').value,
-        pm: document.getElementById('pm').value,
-        surveyPath: document.getElementById('surveyPath').value,
-        openDate: document.getElementById('openDate').value
-      };
-      fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(project)
-      })
-      .then(() => {
-        loadProjects();
-        document.getElementById('project-form').reset();
-      });
-    });
+   // 완료된 프로젝트 보기 토글 기능
+   document.getElementById('toggle-completed-btn').addEventListener('click', () => {
+     const completedProjectList = document.getElementById('completed-project-list');
+     const isVisible = completedProjectList.style.display === 'block';
+     loadProjects(!isVisible);
+     document.getElementById('toggle-completed-btn').textContent = isVisible ? '완료된 프로젝트 보기' : '완료된 프로젝트 숨기기';
+   });
 
-    // 체크 리스트 완료 처리
-    function completeChecklistItem(projectId, taskName) {
-      fetch(`/api/projects/${projectId}/tasks/${encodeURIComponent(taskName)}/complete`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' }
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to complete task');
-          }
-          return response.json();
-        })
-        .then(() => {
-          loadProjects(); // 완료 후 프로젝트 목록 새로고침
-        })
-        .catch(err => console.error('Error completing task:', err));
-    }
+   // 프로젝트 생성
+   document.getElementById('project-form').addEventListener('submit', e => {
+     e.preventDefault();
+     const project = {
+       projectName: document.getElementById('projectName').value,
+       pm: document.getElementById('pm').value,
+       surveyPath: document.getElementById('surveyPath').value,
+       openDate: document.getElementById('openDate').value
+     };
+     fetch('/api/projects', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify(project)
+     })
+     .then(() => {
+       loadProjects();
+       document.getElementById('project-form').reset();
+     });
+   });
 
-    // 체크리스트 렌더링 함수
-    function renderChecklist(projectId, checklist) {
-      const checklistItems = [
-        'IP 발급',
-        '방화벽 적용',
-        'VM 생성',
-        'OS 세팅',
-        '접근 제어',
-        'V3 설치'
-      ];
+   // 체크 리스트 완료 처리
+   function completeChecklistItem(projectId, taskName) {
+     fetch(`/api/projects/${projectId}/tasks/${encodeURIComponent(taskName)}/complete`, {
+       method: 'PUT',
+       headers: { 'Content-Type': 'application/json' }
+     })
+       .then(response => {
+         if (!response.ok) {
+           throw new Error('Failed to complete task');
+         }
+         return response.json();
+       })
+       .then(data => {
+         loadProjects(); // 완료 후 프로젝트 목록 새로고침
+       })
+       .catch(err => console.error('Error completing task:', err));
+   }
 
-      checklist = checklist || {};
 
-      return checklistItems.map(item => {
-        const isChecked = checklist[item] && checklist[item].completedAt;
-        const completedBy = isChecked ? checklist[item].completedBy : '';
-        const completedAt = isChecked ? formatDate(checklist[item].completedAt) : '';
+   // 체크리스트 렌더링 함수
+   function renderChecklist(projectId, checklist) {
+     const checklistItems = [
+       'IP 발급',
+       '방화벽 적용',
+       'VM 생성',
+       'OS 세팅',
+       '접근 제어',
+       'V3 설치'
+     ];
 
-        return `
-          <div class="form-check mb-2">
-            <input type="checkbox" class="form-check-input" id="check-${projectId}-${item}" ${isChecked ? 'checked disabled' : ''}>
-            <label class="form-check-label" for="check-${projectId}-${item}">
-              ${item} ${isChecked ? ` (완료: ${completedBy} @ ${completedAt})` : ''}
-            </label>
-            ${!isChecked ? `<button class="btn btn-sm btn-success" onclick="completeChecklistItem(${projectId}, '${item}')">완료</button>` : ''}
-          </div>
-        `;
-      }).join('');
-    }
+     checklist = checklist || {};
 
-    // 체크 항목 완료 처리
-    function completeTask(projectId, taskId) {
-      fetch(`/api/projects/${projectId}/tasks/${taskId}/complete`, { method: 'PUT' })
-        .then(() => loadProjects())
-        .catch(err => console.error('Error completing task:', err));
-    }
+     return checklistItems.map(item => {
+       const isChecked = checklist[item] && checklist[item].completedAt;
+       const completedBy = isChecked ? checklist[item].completedBy : '';
+       const completedAt = isChecked ? formatDate(checklist[item].completedAt) : '';
 
-    // 페이지 로드 시 프로젝트 목록 불러오기
-    loadProjects();
+       return `
+         <div class="form-check mb-2">
+           <input type="checkbox" class="form-check-input" id="check-${projectId}-${item}" ${isChecked ? 'checked disabled' : ''}>
+           <label class="form-check-label" for="check-${projectId}-${item}">
+             ${item} ${isChecked ? ` (완료: ${completedBy} @ ${completedAt})` : ''}
+           </label>
+           ${!isChecked ? `<button class="btn btn-sm btn-success" onclick="completeChecklistItem(${projectId}, '${item}')">완료</button>` : ''}
+         </div>
+       `;
+     }).join('');
+   }
+
+   // 체크 항목 완료 처리
+   function completeTask(projectId, taskId) {
+     fetch(`/api/projects/${projectId}/tasks/${taskId}/complete`, { method: 'PUT' })
+       .then(() => loadProjects())
+       .catch(err => console.error('Error completing task:', err));
+   }
+
+  // 페이지 로드 시 프로젝트 목록 불러오기
+  loadProjects();
   </script>
+
   <script>
   function formatDate(dateString) {
     if (!dateString) return '-';
@@ -1231,6 +1552,45 @@ app.listen(PORT, () => {
 
     return `${year}-${month}-${day}`;
   }
+  </script>
+
+  <script>
+  // 비밀번호 변경 핸들러
+  document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+
+    fetch('/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('비밀번호 변경 실패');
+      return res.text();
+    })
+    .then(message => {
+      alert(message);
+      document.getElementById('changePasswordForm').reset();
+      bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+    })
+    .catch(err => alert(err.message));
+  });
+
+  // 계정 탈퇴 핸들러
+  document.getElementById('confirmDeleteAccount').addEventListener('click', () => {
+    fetch('/delete-account', { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('계정 탈퇴 실패');
+        return res.text();
+      })
+      .then(message => {
+        alert(message);
+        window.location.href = '/login';
+      })
+      .catch(err => alert(err.message));
+  });
   </script>
 </body>
 </html>
@@ -1316,7 +1676,6 @@ docker commit --change='CMD ["node", "index.js"]' <container> <image>
 ```
 FROM node:16
 
-# 작업 디렉토리 설정
 WORKDIR /app/node02
 
 COPY package*.json ./
