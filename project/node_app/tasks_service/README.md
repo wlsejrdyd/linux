@@ -62,14 +62,14 @@ app.get('/register', (req, res) => {
 
 // 사용자 회원가입 처리
 app.post('/register', async (req, res) => {
-  const { username, password, name } = req.body;
+  const { username, password, name, email, phoneNumber } = req.body;
   const connection = await mysql.createConnection(dbConfig);
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     await connection.execute(
-      'INSERT INTO users (username, password, name) VALUES (?, ?, ?)',
-      [username, hashedPassword, name]
+      'INSERT INTO users (username, password, name, email, phoneNumber) VALUES (?, ?, ?, ?, ?)',
+      [username, hashedPassword, name, email, phoneNumber]
     );
     res.redirect('/login');
   } catch (error) {
@@ -116,10 +116,16 @@ app.post('/login', async (req, res) => {
 });
 
 // 사용자 목록 API
+//app.get('/users', async (req, res) => {
+//  const connection = await mysql.createConnection(dbConfig);
+//  const [rows] = await connection.execute('SELECT username FROM users');
+//  res.json(rows.map(row => row.username));
+//  await connection.end();
+//});
 app.get('/users', async (req, res) => {
   const connection = await mysql.createConnection(dbConfig);
-  const [rows] = await connection.execute('SELECT username FROM users');
-  res.json(rows.map(row => row.username));
+  const [rows] = await connection.execute('SELECT name FROM users');
+  res.json(rows.map(row => row.name));
   await connection.end();
 });
 
@@ -133,34 +139,48 @@ app.get('/dashboard', (req, res) => {
 app.get('/tasks', async (req, res) => {
   const limit = parseInt(req.query.limit) || 10; // 기본값은 10
   const connection = await mysql.createConnection(dbConfig);
-  const [rows] = await connection.execute(`
-    SELECT * FROM tasks
-    ORDER BY
-      CASE WHEN status = 'Incomplete' THEN 1 ELSE 2 END, createdAt DESC
-    LIMIT ?
-  `, [limit]);
+  try {
+    const [rows] = await connection.execute(`
+      SELECT
+        tasks.*,
+        users.name AS createdByName -- 작성자의 이름 가져오기
+      FROM tasks
+      LEFT JOIN users ON tasks.createdBy = users.username -- username과 조인
+      ORDER BY
+        CASE WHEN status = 'Incomplete' THEN 1 ELSE 2 END, createdAt DESC
+      LIMIT ?
+    `, [limit]);
 
-  // KST로 변환
-  const tasks = rows.map(task => {
-    // dueDate KST 변환
-    const dueDate = new Date(task.dueDate);
-    const kstDueDate = new Date(dueDate.getTime() + (9 * 60 * 60 * 1000));
-    task.dueDate = kstDueDate.toISOString().replace('T', ' ').substring(0, 16); // YYYY-MM-DD HH:MM 형식
+    // KST로 변환 및 `name` 포함
+    const tasks = rows.map(task => {
+      // dueDate KST 변환
+      const dueDate = new Date(task.dueDate);
+      const kstDueDate = new Date(dueDate.getTime() + (9 * 60 * 60 * 1000));
+      task.dueDate = kstDueDate.toISOString().split('T')[0]; // YYYY-MM-DD 형식
 
-    // completedAt KST 변환 (완료된 경우만)
-    if (task.completedAt) {
-      const completedAt = new Date(task.completedAt);
-      const kstCompletedAt = new Date(completedAt.getTime() + (9 * 60 * 60 * 1000));
-      task.completedAt = kstCompletedAt.toISOString().replace('T', ' ').substring(0, 16); // YYYY-MM-DD HH:MM 형식
-    } else {
-      task.completedAt = '-'; // 완료되지 않은 경우 "-"
-    }
+      // completedAt KST 변환 (완료된 경우만)
+      if (task.completedAt) {
+        const completedAt = new Date(task.completedAt);
+        const kstCompletedAt = new Date(completedAt.getTime() + (9 * 60 * 60 * 1000));
+        task.completedAt = kstCompletedAt.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+      } else {
+        task.completedAt = '-'; // 완료되지 않은 경우 "-"
+      }
 
-    return task;
-  });
+      // createdBy를 name으로 대체
+      return {
+        ...task,
+        createdBy: task.createdByName // 작성자 이름으로 대체
+      };
+    });
 
-  res.json(tasks);
-  await connection.end();
+    res.json(tasks);
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch tasks' });
+  } finally {
+    await connection.end();
+  }
 });
 
 app.post('/tasks', async (req, res) => {
@@ -170,15 +190,19 @@ app.post('/tasks', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // assignedTo가 배열이므로 JSON 문자열로 저장
+  const assignedToString = JSON.stringify(assignedTo);
+
   const connection = await mysql.createConnection(dbConfig);
   try {
     await connection.execute(`
       INSERT INTO tasks (title, content, assignedTo, dueDate, createdBy, completedAt)
       VALUES (?, ?, ?, ?, ?, NULL)
-    `, [title, content, assignedTo, dueDate, req.session.user.username]);
+    `, [title, content, assignedToString, dueDate, req.session.user.username]);
+
     res.json({ success: true });
   } catch (error) {
-    console.error('Error creating task:', error); // 에러 로그 출력
+    console.error('Error creating task:', error);
     res.status(500).json({ error: 'Failed to create task' });
   } finally {
     await connection.end();
@@ -203,22 +227,30 @@ app.put('/tasks/:id', async (req, res) => {
     .replace('T', ' ')
     .substring(0, 19); // YYYY-MM-DD HH:MM:SS 형식
 
-  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Unauthorized' }); // 비로그인 사용자
+  }
 
   const connection = await mysql.createConnection(dbConfig);
 
   try {
+    // Task 정보를 조회
     const [taskRows] = await connection.execute('SELECT * FROM tasks WHERE id = ?', [id]);
     if (taskRows.length === 0) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Task not found' }); // 작업이 없을 때
     }
 
     const task = taskRows[0];
-    if (task.assignedTo !== req.session.user.username) {
+
+    // `assignedTo` 필드를 쉼표로 분리하여 배열로 변환
+    const assignedToArray = task.assignedTo ? task.assignedTo.split(',') : [];
+
+    // 현재 사용자가 `assignedTo` 배열에 포함되어 있는지 확인
+    if (!assignedToArray.includes(req.session.user.username) && task.createdBy !== req.session.user.username) {
       return res.status(403).json({ error: 'Not authorized to complete this task' });
     }
 
-    // Task 상태를 Complete로 업데이트하고 completedAt 시간 저장
+    // Task 상태를 Complete로 업데이트하고 완료 시간 저장
     await connection.execute(
       'UPDATE tasks SET status = "Complete", completedAt = ? WHERE id = ?',
       [kstCompletedAt, id]
@@ -306,10 +338,52 @@ app.delete('/delete-account', async (req, res) => {
   try {
     await connection.execute('DELETE FROM users WHERE id = ?', [req.session.user.id]);
     req.session.destroy();
-    res.send('Account deleted successfully');
   } catch (error) {
     console.error('Error deleting account:', error);
     res.status(500).send('Failed to delete account');
+  } finally {
+    await connection.end();
+  }
+});
+
+// 사용자 정보 조회
+app.get('/user-info', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const connection = await mysql.createConnection(dbConfig);
+  try {
+    const [rows] = await connection.execute(
+      'SELECT email, phoneNumber FROM users WHERE id = ?',
+      [req.session.user.id]
+    );
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching user info:', error);
+    res.status(500).json({ error: 'Failed to fetch user info' });
+  } finally {
+    await connection.end();
+  }
+});
+
+// 사용자 정보 수정
+app.put('/update-user-info', async (req, res) => {
+  const { email, phoneNumber } = req.body;
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const connection = await mysql.createConnection(dbConfig);
+  try {
+    await connection.execute(
+      'UPDATE users SET email = ?, phoneNumber = ? WHERE id = ?',
+      [email, phoneNumber, req.session.user.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating user info:', error);
+    res.status(500).json({ error: 'Failed to update user info' });
   } finally {
     await connection.end();
   }
@@ -456,27 +530,35 @@ app.post('/api/projects', async (req, res) => {
 // 프로젝트 완료처리 라우트
 app.put('/api/projects/:projectId/tasks/:taskName/complete', async (req, res) => {
   const { projectId, taskName } = req.params;
-  const completedBy = req.session.user.username;
+  const username = req.session.user.username;
 
   // KST로 현재 시간 설정
   const now = new Date();
-//  const kstCompletedAt = new Date(now.getTime() + (9 * 60 * 60 * 1000))
-//    .toISOString()
-//    .replace('T', ' ')
-//    .substring(0, 19);
   const kstCompletedAt = new Date(now.getTime() + (9 * 60 * 60 * 1000))
-  .toISOString()
-  .split('T')[0]; // YYYY-MM-DD 형식으로 변환
+    .toISOString()
+    .split('T')[0]; // YYYY-MM-DD 형식으로 변환
 
   const connection = await mysql.createConnection(dbConfig);
 
   try {
+    // 사용자 이름 가져오기
+    const [userRows] = await connection.execute(
+      `SELECT name FROM users WHERE username = ?`,
+      [username]
+    );
+
+    if (userRows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const completedByName = userRows[0].name;
+
     // 체크리스트 항목을 완료 상태로 업데이트
     await connection.execute(`
       UPDATE project_tasks
       SET completedBy = ?, completedAt = ?
       WHERE projectId = ? AND taskName = ?
-    `, [completedBy, kstCompletedAt, projectId, taskName]);
+    `, [completedByName, kstCompletedAt, projectId, taskName]);
 
     // 진행률 업데이트 (완료된 항목 수를 기준으로 백분율 계산)
     const [totalTasks] = await connection.execute(
@@ -496,7 +578,7 @@ app.put('/api/projects/:projectId/tasks/:taskName/complete', async (req, res) =>
       [progress, projectId]
     );
 
-    res.json({ success: true, progress });
+    res.json({ success: true, progress, completedBy: completedByName, completedAt: kstCompletedAt });
   } catch (error) {
     console.error('Error completing task:', error);
     res.status(500).json({ error: 'Failed to complete task' });
@@ -576,6 +658,9 @@ app.listen(PORT, () => {
 <!-- Bootstrap JavaScript 및 Popper.js 추가 -->
 <script src="/js/popper.min.js"></script>
 <script src="/js/bootstrap.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <body>
   <div class="container mt-5">
     <!-- 사용자 메뉴 아이콘 -->
@@ -585,10 +670,36 @@ app.listen(PORT, () => {
           <img src="/images/user-icon.png" alt="User Icon" class="rounded-circle" width="30" height="30">
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editUserInfoModal">회원정보 수정</a></li>
           <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</a></li>
           <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 탈퇴</a></li>
           <li><a class="dropdown-item" href="/logout">로그아웃</a></li>
         </ul>
+      </div>
+    </div>
+
+    <!-- 회원정보 수정 -->
+    <div class="modal fade" id="editUserInfoModal" tabindex="-1" aria-labelledby="editUserInfoModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editUserInfoModalLabel">회원정보 수정</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editUserInfoForm">
+              <div class="mb-3">
+                <label for="edit-email" class="form-label">이메일</label>
+                <input type="email" class="form-control" id="edit-email" required>
+              </div>
+              <div class="mb-3">
+                <label for="edit-phoneNumber" class="form-label">핸드폰 번호</label>
+                <input type="tel" class="form-control" id="edit-phoneNumber" required>
+              </div>
+              <button type="submit" class="btn btn-primary">저장</button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -645,7 +756,7 @@ app.listen(PORT, () => {
       </div>
       <div class="mb-3">
         <label for="assignedTo" class="form-label">담당자 지정</label>
-        <select class="form-control" id="assignedTo" required></select>
+        <select class="form-control" id="assignedTo" multiple="multiple" required></select>
       </div>
       <div class="mb-3">
         <label for="dueDate" class="form-label">완료 요청일</label>
@@ -694,19 +805,37 @@ app.listen(PORT, () => {
     </div>
   </div>
 
+<style>
+  .select2-container {
+    width: 100% !important;
+  }
+  .select2-selection--multiple {
+    min-height: 38px;
+  }
+</style>
+
+
   <script>
   // Load users into the "Assign To" dropdown
+  $(document).ready(function() {
+  $('#assignedTo').select2({
+    placeholder: '담당자 선택',
+    allowClear: true
+    });
+  });
+
+  // 사용자 목록 불러오기
   fetch('/users')
     .then(res => res.json())
     .then(users => {
-      const assignToSelect = document.getElementById('assignedTo');
+      const assignToSelect = $('#assignedTo');
       users.forEach(user => {
-        const option = document.createElement('option');
-        option.value = user;
-        option.textContent = user;
-        assignToSelect.appendChild(option);
+        const option = new Option(user, user, false, false);
+        assignToSelect.append(option);
       });
-    });
+    })
+    .catch(err => console.error('Error fetching users:', err));
+
 
   // Load Task List
   function loadTasks() {
@@ -749,15 +878,19 @@ app.listen(PORT, () => {
 
   function renderTaskList(tasks) {
     const taskList = document.getElementById('task-list');
-    taskList.innerHTML = ''; // 기존 목록 지우기
+    taskList.innerHTML = '';
 
     tasks.forEach(task => {
+      // 담당자를 파싱하여 문자열로 변환
+      const assignedTo = Array.from(document.querySelectorAll('#assignedTo option:checked'))
+                        .map(option => option.value);
+
       const row = document.createElement('tr');
       row.innerHTML = `
         <td>${task.id}</td>
         <td>${task.title}</td>
         <td class="task-content">${task.content.replace(/\n/g, '<br>')}</td>
-        <td>${task.assignedTo}</td>
+        <td>${assignedTo}</td>
         <td>${task.dueDate}</td>
         <td>${task.createdBy}</td>
         <td>
@@ -774,29 +907,63 @@ app.listen(PORT, () => {
 
   // Create Task
   document.getElementById('task-form').addEventListener('submit', handleTaskSubmit);
+
   function handleTaskSubmit(e) {
     e.preventDefault();
+
+    // 선택된 모든 담당자를 배열로 가져옵니다.
+    const assignedToSelect = document.getElementById('assignedTo');
+    const assignedTo = Array.from(assignedToSelect.selectedOptions).map(option => option.value);
+
+    const title = document.getElementById('title').value.trim();
+    const content = document.getElementById('content').value.trim();
+    const dueDate = document.getElementById('dueDate').value;
+
+    // content가 비어있는 경우 경고 및 작업 중단
+    if (!content) {
+      alert('내용을 입력해주세요.');
+      return;
+    }
+
     const task = {
-      title: document.getElementById('title').value,
-      content: document.getElementById('content').value,
-      assignedTo: document.getElementById('assignedTo').value,
-      dueDate: document.getElementById('dueDate').value
+      title,
+      content,
+      assignedTo, // 배열 형태로 전송
+      dueDate,
     };
 
     fetch('/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(task)
+      body: JSON.stringify(task),
     })
-    .then(res => res.json())
-    .then(() => loadTasks());
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to create task');
+        }
+        return res.json();
+      })
+      .then(() => {
+        alert('작업이 성공적으로 생성되었습니다.');
+        window.location.reload(); // 작업 성공 시 페이지 새로고침
+      })
+      .catch(err => alert('작업 생성 중 오류가 발생했습니다: ' + err.message));
   }
 
   // Complete Task
   function completeTask(id) {
     fetch(`/tasks/${id}`, { method: 'PUT' })
-      .then(() => loadTasks());
-  }
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to complete task');
+        }
+        return res.json();
+      })
+      .then(() => {
+        loadTasks(); // 완료 후 목록 새로고침
+      })
+      .catch(err => alert('Error completing task: ' + err.message));
+    }
 
   // Filter Tasks by Keyword
   function filterTasks() {
@@ -884,6 +1051,37 @@ app.listen(PORT, () => {
       })
       .catch(err => alert(err.message));
   });
+
+  // 정보 수정 핸들러
+  document.getElementById('editUserInfoForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById('edit-email').value.trim();
+    const phoneNumber = document.getElementById('edit-phoneNumber').value.trim();
+
+    fetch('/update-user-info', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phoneNumber }),
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('회원정보 수정 실패');
+        }
+        alert('회원정보가 성공적으로 수정되었습니다.');
+        bootstrap.Modal.getInstance(document.getElementById('editUserInfoModal')).hide();
+      })
+      .catch(err => alert(err.message));
+  });
+
+  // 초기값 설정 (API에서 사용자 정보 가져오기)
+  fetch('/user-info')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('edit-email').value = data.email || '';
+      document.getElementById('edit-phoneNumber').value = data.phoneNumber || '';
+    })
+    .catch(err => console.error('Error fetching user info:', err));
   </script>
 </body>
 </html>
@@ -902,23 +1100,61 @@ app.listen(PORT, () => {
 <body>
   <div class="container mt-5">
     <h1>Register</h1>
-    <form action="/register" method="POST">
-      <div class="mb-3">
-        <label for="username" class="form-label">login ID</label>
-        <input type="text" class="form-control" id="username" name="username" required>
-      </div>
-      <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" name="password" required>
-      </div>
-      <div class="mb-3">
-        <label for="name" class="form-label">Name</label>
-        <input type="text" class="form-control" id="name" name="name" required>
-      </div>
-      <button type="submit" class="btn btn-primary">Register</button>
-    </form>
-    <p class="mt-3">Already have an account? <a href="/login">Login here</a></p>
-  </div>
+      <form id="registerForm">
+        <div class="mb-3">
+          <label for="username" class="form-label">ID</label>
+          <input type="text" id="username" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">비밀번호</label>
+          <input type="password" id="password" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label for="name" class="form-label">이름</label>
+          <input type="text" id="name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label for="email" class="form-label">이메일</label>
+          <input type="email" id="email" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label for="phoneNumber" class="form-label">핸드폰 번호</label>
+          <input type="tel" id="phoneNumber" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary">회원가입</button>
+        <p class="mt-3">Already have an account? <a href="/login">Login here</a></p>
+      </form>
+
+  <script>
+  document.getElementById('registerForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const data = {
+      username: document.getElementById('username').value,
+      password: document.getElementById('password').value,
+      name: document.getElementById('name').value,
+      email: document.getElementById('email').value,
+      phoneNumber: document.getElementById('phoneNumber').value,
+    };
+
+    fetch('/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('회원가입 실패');
+        }
+        return res.text();
+      })
+      .then(() => {
+        alert('회원가입 성공');
+        window.location.href = '/login';
+      })
+      .catch(err => alert(err.message));
+  });
+  </script>
 </body>
 </html>
 ```
@@ -1017,10 +1253,36 @@ app.listen(PORT, () => {
           <img src="/images/user-icon.png" alt="User Icon" class="rounded-circle" width="30" height="30">
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editUserInfoModal">회원정보 수정</a></li>
           <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</a></li>
           <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 탈퇴</a></li>
           <li><a class="dropdown-item" href="/logout">로그아웃</a></li>
         </ul>
+      </div>
+    </div>
+
+    <!-- 회원정보 수정 -->
+    <div class="modal fade" id="editUserInfoModal" tabindex="-1" aria-labelledby="editUserInfoModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editUserInfoModalLabel">회원정보 수정</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editUserInfoForm">
+              <div class="mb-3">
+                <label for="edit-email" class="form-label">이메일</label>
+                <input type="email" class="form-control" id="edit-email" required>
+              </div>
+              <div class="mb-3">
+                <label for="edit-phoneNumber" class="form-label">핸드폰 번호</label>
+                <input type="tel" class="form-control" id="edit-phoneNumber" required>
+              </div>
+              <button type="submit" class="btn btn-primary">저장</button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1261,6 +1523,37 @@ app.listen(PORT, () => {
       })
       .catch(err => alert(err.message));
   });
+
+  // 정보 수정 핸들러
+  document.getElementById('editUserInfoForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById('edit-email').value.trim();
+    const phoneNumber = document.getElementById('edit-phoneNumber').value.trim();
+
+    fetch('/update-user-info', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phoneNumber }),
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('회원정보 수정 실패');
+        }
+        alert('회원정보가 성공적으로 수정되었습니다.');
+        bootstrap.Modal.getInstance(document.getElementById('editUserInfoModal')).hide();
+      })
+      .catch(err => alert(err.message));
+  });
+
+  // 초기값 설정 (API에서 사용자 정보 가져오기)
+  fetch('/user-info')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('edit-email').value = data.email || '';
+      document.getElementById('edit-phoneNumber').value = data.phoneNumber || '';
+    })
+    .catch(err => console.error('Error fetching user info:', err));
   </script>
 </body>
 </html>
@@ -1338,10 +1631,36 @@ app.listen(PORT, () => {
           <img src="/images/user-icon.png" alt="User Icon" class="rounded-circle" width="30" height="30">
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editUserInfoModal">회원정보 수정</a></li>
           <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">비밀번호 변경</a></li>
           <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">계정 탈퇴</a></li>
           <li><a class="dropdown-item" href="/logout">로그아웃</a></li>
         </ul>
+      </div>
+    </div>
+
+    <!-- 회원정보 수정 -->
+    <div class="modal fade" id="editUserInfoModal" tabindex="-1" aria-labelledby="editUserInfoModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editUserInfoModalLabel">회원정보 수정</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editUserInfoForm">
+              <div class="mb-3">
+                <label for="edit-email" class="form-label">이메일</label>
+                <input type="email" class="form-control" id="edit-email" required>
+              </div>
+              <div class="mb-3">
+                <label for="edit-phoneNumber" class="form-label">핸드폰 번호</label>
+                <input type="tel" class="form-control" id="edit-phoneNumber" required>
+              </div>
+              <button type="submit" class="btn btn-primary">저장</button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1591,6 +1910,37 @@ app.listen(PORT, () => {
       })
       .catch(err => alert(err.message));
   });
+
+  // 정보 수정 핸들러
+  document.getElementById('editUserInfoForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById('edit-email').value.trim();
+    const phoneNumber = document.getElementById('edit-phoneNumber').value.trim();
+
+    fetch('/update-user-info', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phoneNumber }),
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('회원정보 수정 실패');
+        }
+        alert('회원정보가 성공적으로 수정되었습니다.');
+        bootstrap.Modal.getInstance(document.getElementById('editUserInfoModal')).hide();
+      })
+      .catch(err => alert(err.message));
+  });
+
+  // 초기값 설정 (API에서 사용자 정보 가져오기)
+  fetch('/user-info')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('edit-email').value = data.email || '';
+      document.getElementById('edit-phoneNumber').value = data.phoneNumber || '';
+    })
+    .catch(err => console.error('Error fetching user info:', err));
   </script>
 </body>
 </html>
@@ -1615,6 +1965,10 @@ CREATE TABLE tasks (
 )DEFAULT CHARSET=UTF8;
 ```
 
+ALTER TABLE users
+ADD COLUMN email VARCHAR(255),
+ADD COLUMN phoneNumber VARCHAR(15);
+
 ### 사용자 테이블 생성
 ```
 CREATE TABLE users (
@@ -1622,6 +1976,8 @@ CREATE TABLE users (
   username VARCHAR(50) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   name VARCHAR(100) NOT NULL,
+  email VARCHAR(255) NULL,
+  phoneNumber VARCHAR(15) NULL,
   role ENUM('admin', 'user') DEFAULT 'user'
 )DEFAULT CHARSET=UTF8;
 ```
