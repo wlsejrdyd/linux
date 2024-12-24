@@ -338,6 +338,7 @@ app.delete('/delete-account', async (req, res) => {
   try {
     await connection.execute('DELETE FROM users WHERE id = ?', [req.session.user.id]);
     req.session.destroy();
+    res.send('Account deleted successfully');
   } catch (error) {
     console.error('Error deleting account:', error);
     res.status(500).send('Failed to delete account');
