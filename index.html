@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Manager - deok.kr</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #111827; color: #fff;
+      min-height: 100vh; padding: 1rem;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem; }
+    .form-box {
+      background: #1f2937; border-radius: 0.5rem;
+      padding: 1rem; margin-bottom: 1.5rem;
+    }
+    .form-row { display: flex; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .form-row:last-child { margin-bottom: 0; }
+    input, select {
+      background: #374151; border: none; border-radius: 0.375rem;
+      padding: 0.5rem 0.75rem; color: #fff; font-size: 0.875rem;
+      flex: 1; min-width: 120px;
+    }
+    input:focus, select:focus { outline: 2px solid #3b82f6; }
+    input::placeholder { color: #9ca3af; }
+    .btn {
+      background: #2563eb; border: none; border-radius: 0.375rem;
+      padding: 0.5rem 1.5rem; color: #fff; font-size: 0.875rem;
+      cursor: pointer; font-weight: 500; transition: background 0.2s;
+    }
+    .btn:hover { background: #1d4ed8; }
+    .btn:disabled { background: #4b5563; cursor: not-allowed; }
+    .filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .filter-btn {
+      background: #374151; border: none; border-radius: 0.25rem;
+      padding: 0.25rem 0.75rem; color: #fff; font-size: 0.75rem;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .filter-btn:hover { background: #4b5563; }
+    .filter-btn.active { background: #2563eb; }
+    .url-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .url-item {
+      background: #1f2937; border-radius: 0.5rem; padding: 0.75rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .url-info { flex: 1; min-width: 0; }
+    .url-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+    .url-name { font-weight: 500; font-size: 0.875rem; }
+    .url-tag {
+      font-size: 0.625rem; padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem; text-transform: uppercase;
+    }
+    .tag-production { background: #065f46; color: #6ee7b7; }
+    .tag-development { background: #92400e; color: #fcd34d; }
+    .tag-staging { background: #1e40af; color: #93c5fd; }
+    .tag-other { background: #374151; color: #d1d5db; }
+    .url-link {
+      color: #60a5fa; font-size: 0.875rem; text-decoration: none;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+    }
+    .url-link:hover { text-decoration: underline; }
+    .icon-btn {
+      background: none; border: none; padding: 0.5rem;
+      cursor: pointer; font-size: 1rem; border-radius: 0.25rem;
+      transition: background 0.2s;
+    }
+    .icon-btn:hover { background: #374151; }
+    .empty { color: #6b7280; text-align: center; padding: 2rem; }
+    .count { color: #4b5563; font-size: 0.75rem; text-align: center; margin-top: 1.5rem; }
+    .toast {
+      position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+      background: #10b981; color: #fff; padding: 0.5rem 1rem;
+      border-radius: 0.375rem; font-size: 0.875rem;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+    .toast.error { background: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔗 URL Manager</h1>
+    <p class="subtitle">deok.kr 프로젝트 URL 관리</p>
+
+    <div class="form-box">
+      <div class="form-row">
+        <input type="text" id="inputName" placeholder="이름 (예: API 서버)">
+        <input type="url" id="inputUrl" placeholder="URL (https://...)">
+      </div>
+      <div class="form-row">
+        <select id="inputCategory">
+          <option value="production">Production</option>
+          <option value="development">Development</option>
+          <option value="staging">Staging</option>
+          <option value="other">Other</option>
+        </select>
+        <button class="btn" id="addBtn" onclick="addUrl()">추가</button>
+      </div>
+    </div>
+
+    <div class="filters" id="filters"></div>
+    <div class="url-list" id="urlList"></div>
+    <p class="count" id="count"></p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let urls = [];
+    let filter = 'all';
+
+    function sanitize(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('/api/urls');
+        urls = await res.json();
+        render();
+      } catch (e) {
+        showToast('데이터 로드 실패', true);
+      }
+    }
+
+    function render() {
+      const list = document.getElementById('urlList');
+      const filtered = filter === 'all' ? urls : urls.filter(u => u.category === filter);
+      
+      if (filtered.length === 0) {
+        list.innerHTML = '<p class="empty">등록된 URL 없음 👻</p>';
+      } else {
+        list.innerHTML = filtered.map(u => `
+          <div class="url-item">
+            <div class="url-info">
+              <div class="url-header">
+                <span class="url-name">${sanitize(u.name)}</span>
+                <span class="url-tag tag-${u.category}">${u.category}</span>
+              </div>
+              <a href="${sanitize(u.url)}" target="_blank" rel="noopener noreferrer" class="url-link">${sanitize(u.url)}</a>
+            </div>
+            <button class="icon-btn" onclick="copyUrl('${sanitize(u.url)}')" title="복사">📋</button>
+          </div>
+        `).join('');
+      }
+      
+      document.getElementById('count').textContent = `총 ${urls.length}개 URL 등록됨`;
+      renderFilters();
+    }
+
+    function renderFilters() {
+      const cats = ['all', 'production', 'development', 'staging', 'other'];
+      const labels = { all: '전체', production: 'Production', development: 'Development', staging: 'Staging', other: 'Other' };
+      document.getElementById('filters').innerHTML = cats.map(c => 
+        `<button class="filter-btn ${filter === c ? 'active' : ''}" onclick="setFilter('${c}')">${labels[c]}</button>`
+      ).join('');
+    }
+
+    function setFilter(f) {
+      filter = f;
+      render();
+    }
+
+    async function addUrl() {
+      const nameInput = document.getElementById('inputName');
+      const urlInput = document.getElementById('inputUrl');
+      const btn = document.getElementById('addBtn');
+      
+      const name = nameInput.value.trim();
+      const url = urlInput.value.trim();
+      const category = document.getElementById('inputCategory').value;
+
+      if (!name || !url) {
+        showToast('이름과 URL 모두 입력해라', true);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '추가 중...';
+
+      try {
+        const res = await fetch('/api/urls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, url, category })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || '추가 실패');
+        }
+
+        const newUrl = await res.json();
+        urls.push(newUrl);
+        render();
+        
+        nameInput.value = '';
+        urlInput.value = '';
+        showToast('추가됨!');
+      } catch (e) {
+        showToast(e.message, true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '추가';
+      }
+    }
+
+    function copyUrl(url) {
+      navigator.clipboard.writeText(url);
+      showToast('복사됨!');
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.target.id === 'inputName' || e.target.id === 'inputUrl')) {
+        addUrl();
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>

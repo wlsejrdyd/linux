@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1764634841278,
+    "name": "URL Manager",
+    "url": "https://deok.kr",
+    "category": "production"
+  },
+  {
+    "id": 1764634860605,
+    "name": "URL Manager",
+    "url": "https://www.deok.kr",
+    "category": "production"
+  },
+  {
+    "id": 1764634875908,
+    "name": "통합 관리 시스템",
+    "url": "https://mgmt.deok.kr",
+    "category": "production"
+  },
+  {
+    "id": 1764634905000,
+    "name": "모니터링 시스템",
+    "url": "https://project1.deok.kr",
+    "category": "production"
+  },
+  {
+    "id": 1764634927125,
+    "name": "모니터링 시스템(Prometheus)",
+    "url": "https://project1.deok.kr/prometheus",
+    "category": "production"
+  },
+  {
+    "id": 1764634946200,
+    "name": "모니터링 시스템(Grafana)",
+    "url": "https://project1.deok.kr/grafana",
+    "category": "production"
+  }
+]
